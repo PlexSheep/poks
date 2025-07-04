@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::RwLock};
 
 use circular_queue::CircularQueue;
 use poker::{Card, Evaluator};
-use tracing::{trace, warn};
+use tracing::{info, trace, warn};
 
 mod impls; // additional trait impls
 
@@ -285,10 +285,11 @@ impl World {
         let player = &mut self.players[self.game.turn];
         let current_state = self.game.player_states[self.game.turn];
         if current_state != PlayerState::Playing {
-            warn!(
+            info!(
                 "Player cannot do anything because they are {}",
                 current_state
             );
+            self.game.turn += 1;
             return Ok(());
         }
         match action {
@@ -304,7 +305,21 @@ impl World {
                 self.game.player_total_bets[self.game.turn] += player.currency();
                 player.set_currency(0);
             }
-            Action::Check => (),
+            Action::Check => {
+                let highest_bet = self.game.highest_bet();
+                let player_total = self.game.player_total_bets[self.game.turn];
+                if player_total < highest_bet {
+                    let diff = highest_bet - player_total;
+                    if *player.currency() < diff {
+                        // player goes all in
+                        return self.process_player_action(Action::AllIn);
+                    } else {
+                        *player.currency_mut() -= diff;
+                        self.game.player_total_bets[self.game.turn] += diff;
+                        assert_eq!(self.game.player_total_bets[self.game.turn], highest_bet);
+                    }
+                }
+            }
             Action::HiddenWait => {
                 return Ok(());
             }
@@ -339,6 +354,7 @@ impl World {
     }
 
     fn advance_phase(&mut self) -> Result<()> {
+        self.ensure_bets()?;
         match self.game.phase() {
             Phase::Preflop => {
                 let _ = self.draw_card(); // burn card
@@ -351,6 +367,27 @@ impl World {
             }
             _ => todo!(),
         }
+        Ok(())
+    }
+
+    fn ensure_bets(&mut self) -> Result<()> {
+        let highest_bet = self.game.highest_bet();
+        while self
+            .players
+            .iter()
+            .enumerate()
+            .all(|(pi, p)| self.game.player_total_bets[pi] < highest_bet)
+        {
+            todo!()
+        }
+
+        assert!(
+            self.players
+                .iter()
+                .enumerate()
+                .all(|(pi, p)| self.game.player_total_bets[pi] == highest_bet)
+        );
+
         Ok(())
     }
 
@@ -384,6 +421,11 @@ impl Game {
 
     pub fn pot(&self) -> Currency {
         self.player_total_bets.iter().sum()
+    }
+
+    pub fn highest_bet(&self) -> Currency {
+        assert!(!self.player_total_bets.is_empty());
+        *self.player_total_bets.iter().max().unwrap()
     }
 }
 
