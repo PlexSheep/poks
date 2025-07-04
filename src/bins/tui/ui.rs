@@ -3,7 +3,7 @@ use std::fmt::Display;
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
-    game::{Action, GameSetup, GameState, World, show_hand},
+    game::{Action, GameState, World, show_hand},
     player::{PlayerBehavior, PlayerLocal},
 };
 use ratatui::{
