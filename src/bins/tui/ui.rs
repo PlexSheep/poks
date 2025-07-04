@@ -22,7 +22,7 @@ pub struct PoksTUI {
 impl PoksTUI {
     pub fn new() -> Self {
         Self {
-            world: World::new(4),
+            world: World::new(4, poks::game::GameSetup::LocalAgainstCPU),
             should_exit: false,
             frame: 0,
             gamestate: GameState::Pause,

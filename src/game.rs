@@ -62,13 +62,31 @@ pub enum GameState {
     AwaitingLocalPlayer,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GameSetup {
+    CPUOnly,
+    LocalAgainstCPU,
+}
+
 impl World {
-    pub fn new(players_amount: usize) -> Self {
+    pub fn new(players_amount: usize, game_setup: GameSetup) -> Self {
         let evaluator = Evaluator::new().into();
-        let mut players = vec![Player::local(5000)];
-        for _ in 1..players_amount {
-            players.push(Player::cpu(5000))
-        }
+        let players = match game_setup {
+            GameSetup::LocalAgainstCPU => {
+                let mut players = vec![Player::local(5000)];
+                for _ in 1..players_amount {
+                    players.push(Player::cpu(5000))
+                }
+                players
+            }
+            GameSetup::CPUOnly => {
+                let mut players = vec![];
+                for _ in 0..players_amount {
+                    players.push(Player::cpu(5000))
+                }
+                players
+            }
+        };
         let deck = poker::deck::shuffled();
         debug_assert_eq!(deck.len(), 52);
         let mut w = Self {

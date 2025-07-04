@@ -22,6 +22,8 @@ impl Debug for World {
             .field("evaluator", &Shortened)
             .field("players", &self.players)
             .field("game", &self.game)
+            .field("deck", &self.deck)
+            .field("action_log", &self.action_log)
             .finish()
     }
 }
