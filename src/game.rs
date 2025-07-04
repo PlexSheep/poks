@@ -20,12 +20,13 @@ pub enum Phase {
 pub struct World {
     evaluator: Arc<Evaluator>,
     player_amount: usize,
+    pub current_game: Option<Game>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Game {
-    players: Vec<Player>,
-    phase: Phase,
+    pub players: Vec<Player>,
+    pub phase: Phase,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -34,8 +35,9 @@ pub enum Player {
     CPU(PlayerCPU),
 }
 
-pub trait PlayerBehavior: Default {
-    fn hand(&self) -> Hand;
+pub trait PlayerBehavior {
+    fn hand(&self) -> Option<&Hand>;
+    fn hand_mut(&mut self) -> Option<&mut Hand>;
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -48,13 +50,54 @@ pub struct PlayerCPU {
     hand: Option<Hand>,
 }
 
+impl PlayerBehavior for Player {
+    fn hand(&self) -> Option<&Hand> {
+        match self {
+            Player::Local(p) => p.hand(),
+            Player::CPU(p) => p.hand(),
+        }
+    }
+
+    fn hand_mut(&mut self) -> Option<&mut Hand> {
+        match self {
+            Player::Local(p) => p.hand_mut(),
+            Player::CPU(p) => p.hand_mut(),
+        }
+    }
+}
+
+impl PlayerBehavior for PlayerLocal {
+    fn hand(&self) -> Option<&Hand> {
+        self.hand.as_ref()
+    }
+
+    fn hand_mut(&mut self) -> Option<&mut Hand> {
+        self.hand.as_mut()
+    }
+}
+
+impl PlayerBehavior for PlayerCPU {
+    fn hand(&self) -> Option<&Hand> {
+        self.hand.as_ref()
+    }
+
+    fn hand_mut(&mut self) -> Option<&mut Hand> {
+        self.hand.as_mut()
+    }
+}
+
 impl World {
     pub fn new(players: usize) -> Self {
         let evaluator = Evaluator::new().into();
         Self {
             evaluator,
             player_amount: players,
+            current_game: None,
         }
+    }
+
+    pub fn start_new_game(&mut self) {
+        self.current_game = Some(self.new_game())
     }
 
     pub fn new_game(&self) -> Game {
@@ -66,6 +109,10 @@ impl World {
             players,
             phase: Phase::default(),
         }
+    }
+
+    pub fn tick_game(&mut self) {
+        todo!()
     }
 }
 

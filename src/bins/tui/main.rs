@@ -2,8 +2,7 @@ use std::{fs::OpenOptions, time::Duration};
 
 use color_eyre::Result;
 use crossterm::event;
-use poks::game::World;
-use ratatui::{DefaultTerminal, prelude::Text, widgets::Paragraph};
+use ratatui::{DefaultTerminal, prelude::*};
 use tracing::Level;
 use tracing_subscriber::{Registry, filter, fmt, prelude::*};
 
@@ -45,10 +44,8 @@ fn run(mut terminal: DefaultTerminal) -> Result<()> {
         tui.update()?;
         terminal.draw(|f| tui.render(f))?;
 
-        if event::poll(EVENT_POLL_TIMEOUT)? {
-            let event = event::read()?;
-            tui.handle_event(event)?
-        }
+        let event = event::read()?;
+        tui.handle_event(event)?
     }
 
     Ok(())
