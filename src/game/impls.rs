@@ -98,6 +98,7 @@ impl Display for Action {
                 Action::Raise(bet) => format!("raises by {bet}"),
                 Action::AllIn => "goes all in!".to_string(),
                 Action::NewGame => "A new game has started".to_string(),
+                Action::Winner(w) => w.msg(),
             }
         )
     }
@@ -105,7 +106,7 @@ impl Display for Action {
 
 impl Distribution<Action> for StandardUniform {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Action {
-        let disc: u8 = rng.random_range(0..=100);
+        let disc: u8 = rng.random_range(0..=70);
         match disc {
             0 => Action::Fold,
             1..70 => Action::Check,
@@ -113,5 +114,11 @@ impl Distribution<Action> for StandardUniform {
             100 => Action::Raise(100),
             _ => unreachable!(),
         }
+    }
+}
+
+impl From<Hand> for Vec<Card> {
+    fn from(value: Hand) -> Self {
+        value.to_vec()
     }
 }

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
-    game::{Action, GameState, World, show_hand},
+    game::{Action, GameSetup, GameState, World, show_hand},
     player::{PlayerBehavior, PlayerLocal},
 };
 use ratatui::{
@@ -17,6 +17,7 @@ pub struct PoksTUI {
     should_exit: bool,
     frame: u32,
     gamestate: GameState,
+    message: Option<String>,
 }
 
 impl PoksTUI {
@@ -26,6 +27,7 @@ impl PoksTUI {
             should_exit: false,
             frame: 0,
             gamestate: GameState::Pause,
+            message: None,
         }
     }
 
@@ -36,6 +38,10 @@ impl PoksTUI {
     pub fn update(&mut self) -> Result<()> {
         self.frame += 1;
         self.gamestate = self.world.tick_game()?;
+        if self.gamestate == GameState::Finished {
+            let winner = self.world.game.winner().expect("no winner despite win");
+            self.message = Some("Game finished. Press F6 for a new game.".to_string());
+        }
 
         Ok(())
     }
@@ -96,7 +102,12 @@ impl PoksTUI {
     }
 
     fn metadata(&self) -> String {
-        format!("Frame: {}", self.frame)
+        let mut buf = format!("Frame: {}", self.frame);
+        if self.message.is_some() {
+            let add = format!(" | Message: {}", self.message.as_ref().unwrap());
+            buf.push_str(&add);
+        }
+        buf
     }
 
     fn controls(&self) -> String {
@@ -108,6 +119,7 @@ impl PoksTUI {
     }
 
     fn start_new_game(&mut self) {
+        self.message = None;
         self.world.start_new_game();
     }
 
@@ -184,7 +196,7 @@ impl PoksTUI {
     fn render_action_log(&self) -> String {
         let ac = self.world.action_log();
         let mut buf = String::with_capacity(ac.len() * 40);
-        for (pid, action) in ac.iter().rev() {
+        for (pid, action) in ac.iter() {
             if let Some(pid) = pid {
                 buf.push_str(&format!("Player {pid}: {action}"));
             } else {

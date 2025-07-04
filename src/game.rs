@@ -2,15 +2,15 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use circular_queue::CircularQueue;
-use poker::{Card, Evaluator};
+use poker::{Card, Eval, Evaluator, FiveCard};
 use tracing::info;
 
 use crate::player::{Player, PlayerBehavior, PlayerState};
+use crate::{Result, len_to_const_arr};
 
 mod impls; // additional trait impls
 
 pub type Currency = u64;
-pub type Result<T> = color_eyre::Result<T>;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
@@ -35,6 +35,12 @@ pub struct World {
     action_log: CircularQueue<(Option<usize>, Action)>,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Winner {
+    UnknownCards(usize),
+    KnownCards(usize, Eval<FiveCard>, [Card; 7]),
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Game {
     pub phase: Phase,
@@ -43,6 +49,7 @@ pub struct Game {
     pub player_total_bets: Vec<Currency>,
     pub table_cards: Vec<Card>,
     pub is_finished: bool,
+    winner: Option<Winner>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -52,6 +59,7 @@ pub enum Action {
     Check,
     Raise(Currency),
     AllIn,
+    Winner(Winner),
     NewGame,
 }
 
@@ -60,6 +68,7 @@ pub enum GameState {
     CPUPlayerDidSomething,
     Pause,
     AwaitingLocalPlayer,
+    Finished,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -127,6 +136,9 @@ impl World {
     }
 
     pub fn tick_game(&mut self) -> Result<GameState> {
+        if self.game.is_finished() {
+            return Ok(GameState::Finished);
+        }
         debug_assert!(self.game.turn < self.players.len());
         let player_action = self.players[self.game.turn].act(&self.game);
         self.process_player_action(player_action)?;
@@ -241,7 +253,8 @@ impl World {
                 self.add_table_card();
                 assert_eq!(self.game.table_cards.len(), 5);
                 self.game.set_phase(Phase::River);
-                self.showdown();
+                let w = self.showdown()?;
+                self.action_log.push((None, Action::Winner(w)));
             }
             Phase::River => unreachable!(),
         }
@@ -275,8 +288,30 @@ impl World {
         &self.action_log
     }
 
-    pub fn showdown(&mut self) {
-        todo!()
+    pub fn showdown(&mut self) -> Result<Winner> {
+        let mut evals = Vec::new();
+        for (pid, player) in self.players.iter().enumerate() {
+            let pstate = self.game.player_states[pid];
+            if pstate != PlayerState::Playing {
+                continue;
+            }
+            let mut hand_plus_table: Vec<Card> = player.hand().unwrap().to_vec();
+            hand_plus_table.extend(&self.game.table_cards);
+            // TODO: add better result type and return this as error
+            evals.push((
+                pid,
+                self.evaluator
+                    .evaluate_five(&hand_plus_table)
+                    .expect("could not evaluate"),
+                len_to_const_arr(&hand_plus_table)?,
+            ));
+        }
+
+        evals.sort_by(|a, b| a.1.cmp(&b.1));
+        let winner = Winner::KnownCards(evals[0].0, evals[0].1, evals[0].2);
+        self.game.set_winner(winner);
+
+        Ok(winner)
     }
 }
 
@@ -289,6 +324,7 @@ impl Game {
             player_total_bets: vec![0; player_amount],
             table_cards: Vec::with_capacity(5),
             is_finished: false,
+            winner: None,
         }
     }
 
@@ -314,10 +350,43 @@ impl Game {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.phase == Phase::River
+        self.winner.is_some()
+    }
+
+    pub fn set_winner(&mut self, w: Winner) {
+        self.winner = Some(w);
+    }
+
+    pub fn winner(&self) -> Option<Winner> {
+        self.winner
+    }
+}
+
+impl Hand {
+    fn to_vec(self) -> Vec<Card> {
+        vec![self.0, self.1]
+    }
+}
+
+impl Winner {
+    pub fn msg(&self) -> String {
+        match self {
+            Self::KnownCards(pid, eval, cards) => {
+                format!("Player {pid} won with {eval} ({}).", show_cards(cards))
+            }
+            Self::UnknownCards(pid) => format!("Player {pid} won."),
+        }
     }
 }
 
 pub fn show_hand(h: Option<Hand>) -> String {
     h.map(|h| h.to_string()).unwrap_or("(No Hand)".to_string())
+}
+
+pub fn show_cards(cards: &[Card]) -> String {
+    let mut buf = String::new();
+    for card in cards {
+        buf.push_str(&card.to_string());
+    }
+    buf
 }

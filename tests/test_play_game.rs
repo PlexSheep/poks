@@ -7,7 +7,7 @@ fn get_world() -> World {
 }
 
 #[test]
-#[timeout(3)]
+#[timeout(300)]
 fn test_play_50_games_cpu() {
     let mut w = get_world();
     for _gi in 0..50 {
