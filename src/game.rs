@@ -383,14 +383,14 @@ impl World {
                 self.add_table_card();
                 assert_eq!(self.game.table_cards.len(), 5);
                 self.game.set_phase(Phase::River);
+                self.showdown();
             }
-            Phase::River => {
-                todo!("SHOWDOWN")
-            }
+            Phase::River => unreachable!(),
         }
         Ok(())
     }
 
+    // BUG: even when all players have bet 20, this is still wrong. Maybe folded players?
     fn bets_complete(&mut self) -> bool {
         let highest_bet = self.game.highest_bet();
         if self
@@ -415,6 +415,10 @@ impl World {
 
     pub fn action_log(&self) -> &CircularQueue<(Option<usize>, Action)> {
         &self.action_log
+    }
+
+    pub fn showdown(&mut self) {
+        todo!()
     }
 }
 
