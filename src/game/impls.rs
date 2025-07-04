@@ -74,6 +74,6 @@ impl IndexMut<usize> for Hand {
 
 impl Display for Hand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} | {})", self.0, self.1)
+        write!(f, "{}{}", self.0, self.1)
     }
 }

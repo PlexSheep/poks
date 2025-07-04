@@ -299,6 +299,21 @@ impl World {
         }
         Ok(())
     }
+
+    pub fn show_table(&self) -> String {
+        let mut buf = String::new();
+
+        for i in 0..5 {
+            let card: String = self
+                .table_cards
+                .get(i)
+                .map(|c| c.to_string())
+                .unwrap_or("[  ]".to_string());
+            buf.push_str(&card);
+        }
+
+        buf
+    }
 }
 
 impl Game {
@@ -326,4 +341,8 @@ impl Game {
     pub fn pot(&self) -> Currency {
         self.player_total_bets.iter().sum()
     }
+}
+
+pub fn show_hand(h: Option<Hand>) -> String {
+    h.map(|h| h.to_string()).unwrap_or("(No Hand)".to_string())
 }

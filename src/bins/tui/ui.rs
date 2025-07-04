@@ -1,13 +1,13 @@
+use std::fmt::Display;
+
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use poks::game::{Action, Game, GameState, PlayerBehavior, PlayerLocal, World};
+use poks::game::{Action, GameState, PlayerBehavior, PlayerLocal, World, show_hand};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph},
 };
 use tracing::info;
-
-struct WorldWidget<'a>(&'a World);
 
 pub struct PoksTUI {
     world: World,
@@ -72,19 +72,22 @@ impl PoksTUI {
             ])
             .split(frame.area());
 
+        frame.render_widget(line_widget(self.gamedata(), Borders::ALL, false), layout[0]);
+        self.render_world(layout[1], frame);
         frame.render_widget(
-            Paragraph::new(self.gamedata()).block(Block::new().borders(Borders::ALL)),
-            layout[0],
-        );
-        frame.render_widget(self.world_widget(), layout[1]);
-        frame.render_widget(
-            Paragraph::new(self.metadata())
-                .block(Block::new().borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)),
+            line_widget(
+                self.metadata(),
+                Borders::TOP | Borders::LEFT | Borders::RIGHT,
+                false,
+            ),
             layout[2],
         );
         frame.render_widget(
-            Paragraph::new(self.controls())
-                .block(Block::new().borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)),
+            line_widget(
+                self.controls(),
+                Borders::BOTTOM | Borders::LEFT | Borders::RIGHT,
+                false,
+            ),
             layout[3],
         );
     }
@@ -105,10 +108,6 @@ impl PoksTUI {
         &mut self.world
     }
 
-    fn world_widget(&self) -> WorldWidget {
-        WorldWidget(self.world())
-    }
-
     fn start_new_game(&mut self) {
         self.world.start_new_game();
     }
@@ -116,33 +115,54 @@ impl PoksTUI {
     fn gamedata(&self) -> String {
         let game = &self.world().game;
         format!(
-            "Phase: {}, Turn of Player  {}, You are Player {}",
+            "Phase: {}, Turn of Player: {}, You are Player: {}",
             game.phase(),
             game.turn,
             0
         )
     }
-}
 
-impl WorldWidget<'_> {}
-
-impl Widget for WorldWidget<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
-        let world = self.0;
+    fn render_world(&self, area: Rect, frame: &mut Frame<'_>) {
+        let world = self.world();
         debug_assert!(!world.players.is_empty());
 
         let you = &world.players[0];
 
-        buf.set_string(
-            area.left(),
-            area.top(),
-            you.hand()
-                .map(|h| h.to_string())
-                .unwrap_or("(None)".to_string()),
-            Style::default(),
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Min(2),
+                Constraint::Length(3),
+                Constraint::Min(2),
+                Constraint::Length(3),
+                Constraint::Length(1),
+            ])
+            .split(area);
+        let layout_table = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Min(1),
+                Constraint::Length(26),
+                Constraint::Min(1),
+            ])
+            .split(layout[1]);
+
+        let layout_phand = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Min(1),
+                Constraint::Length(20),
+                Constraint::Min(1),
+            ])
+            .split(layout[3]);
+
+        frame.render_widget(
+            line_widget(world.show_table(), Borders::ALL, true),
+            layout_table[1],
+        );
+        frame.render_widget(
+            line_widget(show_hand(*you.hand()), Borders::NONE, true),
+            layout_phand[1],
         );
     }
 }
@@ -150,4 +170,9 @@ impl Widget for WorldWidget<'_> {
 fn set_player_action(action: Action) {
     PlayerLocal::set_action(action);
     PlayerLocal::set_action_is_ready(true);
+}
+
+fn line_widget<'a>(text: impl Display, borders: Borders, center: bool) -> Paragraph<'a> {
+    let p = Paragraph::new(text.to_string()).block(Block::new().borders(borders));
+    if center { p.centered() } else { p }
 }
