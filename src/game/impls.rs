@@ -103,12 +103,12 @@ impl Display for Action {
 
 impl Distribution<Action> for StandardUniform {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Action {
-        let disc: u8 = rng.random_range(0..=21);
+        let disc: u8 = rng.random_range(0..=100);
         match disc {
             0 => Action::Fold,
-            1..=10 => Action::Check,
-            11..=20 => Action::Raise(10),
-            21 => Action::AllIn,
+            1..70 => Action::Check,
+            70..100 => Action::Raise(10),
+            100 => Action::Raise(100),
             _ => unreachable!(),
         }
     }

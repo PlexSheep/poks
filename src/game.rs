@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::RwLock};
 
 use circular_queue::CircularQueue;
 use poker::{Card, Evaluator};
-use tracing::{info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 mod impls; // additional trait impls
 
@@ -184,7 +184,6 @@ player_impl!(
         // from the ui!
 
         if !Self::get_action_is_ready() {
-            trace!("waiting for action to be ready");
             return Action::HiddenWait;
         }
         let a = Self::get_action();
@@ -270,6 +269,7 @@ impl World {
     }
 
     pub fn tick_game(&mut self) -> Result<GameState> {
+        debug_assert!(self.game.turn < self.players.len());
         let player_action = self.players[self.game.turn].act(&self.game);
         self.process_player_action(player_action)?;
         Ok(
@@ -290,6 +290,7 @@ impl World {
                 current_state
             );
             self.game.turn += 1;
+            self.game.turn %= self.players.len();
             return Ok(());
         }
         match action {
@@ -331,7 +332,6 @@ impl World {
         self.action_log.push((Some(self.game.turn), action));
         self.game.turn += 1;
         if self.game.turn >= self.players.len() {
-            self.game.turn = 0;
             self.advance_phase()?;
         }
         Ok(())
@@ -353,42 +353,64 @@ impl World {
         buf
     }
 
+    fn add_table_card(&mut self) {
+        let card = self.draw_card();
+        self.game.table_cards.push(card);
+    }
+
     fn advance_phase(&mut self) -> Result<()> {
-        self.ensure_bets()?;
+        self.game.turn = 0;
+        if !self.bets_complete() {
+            return Ok(());
+        };
         match self.game.phase() {
             Phase::Preflop => {
                 let _ = self.draw_card(); // burn card
                 for _ in 0..3 {
-                    let card = self.draw_card();
-                    self.game.table_cards.push(card);
+                    self.add_table_card();
                 }
                 assert_eq!(self.game.table_cards.len(), 3);
                 self.game.set_phase(Phase::Flop);
             }
-            _ => todo!(),
+            Phase::Flop => {
+                let _ = self.draw_card(); // burn card
+                self.add_table_card();
+                assert_eq!(self.game.table_cards.len(), 4);
+                self.game.set_phase(Phase::Turn);
+            }
+            Phase::Turn => {
+                let _ = self.draw_card(); // burn card
+                self.add_table_card();
+                assert_eq!(self.game.table_cards.len(), 5);
+                self.game.set_phase(Phase::River);
+            }
+            Phase::River => {
+                todo!("SHOWDOWN")
+            }
         }
         Ok(())
     }
 
-    fn ensure_bets(&mut self) -> Result<()> {
+    fn bets_complete(&mut self) -> bool {
         let highest_bet = self.game.highest_bet();
-        while self
+        if self
             .players
             .iter()
             .enumerate()
-            .all(|(pi, p)| self.game.player_total_bets[pi] < highest_bet)
+            .all(|(pi, _)| self.game.player_total_bets[pi] == highest_bet)
         {
-            todo!()
+            assert!(
+                self.players
+                    .iter()
+                    .enumerate()
+                    .all(|(pi, _)| self.game.player_total_bets[pi] == highest_bet)
+            );
+            true
+        } else {
+            info!("highest bet is {}", self.game.highest_bet());
+            info!("Bets are not done!");
+            false
         }
-
-        assert!(
-            self.players
-                .iter()
-                .enumerate()
-                .all(|(pi, p)| self.game.player_total_bets[pi] == highest_bet)
-        );
-
-        Ok(())
     }
 
     pub fn action_log(&self) -> &CircularQueue<(Option<usize>, Action)> {
