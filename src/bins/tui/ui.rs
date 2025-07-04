@@ -2,7 +2,10 @@ use std::fmt::Display;
 
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use poks::game::{Action, GameState, PlayerBehavior, PlayerLocal, World, show_hand};
+use poks::{
+    game::{Action, GameState, World, show_hand},
+    player::{PlayerBehavior, PlayerLocal},
+};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph},
@@ -50,10 +53,10 @@ impl PoksTUI {
                     self.should_exit = true
                 }
                 KeyCode::F(6) => self.start_new_game(),
-                KeyCode::F(1) => set_player_action(Action::Fold),
-                KeyCode::F(2) => set_player_action(Action::Check),
-                KeyCode::F(3) => set_player_action(Action::Raise(10)),
-                KeyCode::F(4) => set_player_action(Action::Raise(50)),
+                KeyCode::F(1) => PlayerLocal::set_action(Action::Fold),
+                KeyCode::F(2) => PlayerLocal::set_action(Action::Check),
+                KeyCode::F(3) => PlayerLocal::set_action(Action::Raise(10)),
+                KeyCode::F(4) => PlayerLocal::set_action(Action::Raise(50)),
                 _ => (),
             },
             _ => (),
@@ -191,11 +194,6 @@ impl PoksTUI {
         }
         buf
     }
-}
-
-fn set_player_action(action: Action) {
-    PlayerLocal::set_action(action);
-    PlayerLocal::set_action_is_ready(true);
 }
 
 fn line_widget<'a>(text: impl Display, borders: Borders, center: bool) -> Paragraph<'a> {

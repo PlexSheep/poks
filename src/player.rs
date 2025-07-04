@@ -112,6 +112,7 @@ impl PlayerLocal {
         *LOCAL_USER_ACTION
             .write()
             .expect("could not read local user action") = action;
+        Self::set_action_is_ready(true);
     }
     pub fn get_action() -> Action {
         assert!(Self::get_action_is_ready());
