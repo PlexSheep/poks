@@ -33,7 +33,6 @@ pub struct World {
     pub players: Vec<Player>,
     pub game: Game,
     deck: Vec<Card>,
-    table_cards: Vec<Card>,
     action_log: CircularQueue<(usize, Action)>,
 }
 
@@ -43,6 +42,7 @@ pub struct Game {
     pub turn: usize,
     pub player_states: Vec<PlayerState>,
     pub player_total_bets: Vec<Currency>,
+    pub table_cards: Vec<Card>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -164,7 +164,6 @@ impl PlayerLocal {
         LOCAL_USER_ACTION_READY.load(std::sync::atomic::Ordering::Relaxed)
     }
     pub fn set_action(action: Action) {
-        debug_assert!(!Self::get_action_is_ready());
         *LOCAL_USER_ACTION
             .write()
             .expect("could not read local user action") = action;
@@ -227,7 +226,6 @@ impl World {
             evaluator,
             game: Game::new(players.len()), // dummy
             players,
-            table_cards: Vec::new(),
             deck,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
         };
@@ -314,6 +312,7 @@ impl World {
 
         for i in 0..5 {
             let card: String = self
+                .game
                 .table_cards
                 .get(i)
                 .map(|c| c.to_string())
@@ -330,9 +329,9 @@ impl World {
                 let _ = self.draw_card(); // burn card
                 for _ in 0..3 {
                     let card = self.draw_card();
-                    self.table_cards.push(card);
+                    self.game.table_cards.push(card);
                 }
-                assert_eq!(self.table_cards.len(), 3);
+                assert_eq!(self.game.table_cards.len(), 3);
                 self.game.set_phase(Phase::Flop);
             }
             _ => todo!(),
@@ -352,6 +351,7 @@ impl Game {
             phase: Phase::default(),
             player_states: vec![PlayerState::Playing; player_amount],
             player_total_bets: vec![0; player_amount],
+            table_cards: Vec::with_capacity(5),
         }
     }
 

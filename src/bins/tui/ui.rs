@@ -115,10 +115,11 @@ impl PoksTUI {
     fn gamedata(&self) -> String {
         let game = &self.world().game;
         format!(
-            "Phase: {}, Turn of Player: {}, You are Player: {}",
+            "Phase: {} | Turn of Player: {} | You are Player: {} | Pot: {}",
             game.phase(),
             game.turn,
-            0
+            0,
+            game.pot()
         )
     }
 
