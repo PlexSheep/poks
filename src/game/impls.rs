@@ -4,6 +4,7 @@ use std::{
 };
 
 use poker::Card;
+use rand::{distr::StandardUniform, prelude::Distribution};
 
 use crate::game::{Action, Hand, Phase, PlayerState, World};
 
@@ -97,5 +98,18 @@ impl Display for Action {
                 Action::NewGame => "A new game has started".to_string(),
             }
         )
+    }
+}
+
+impl Distribution<Action> for StandardUniform {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Action {
+        let disc: u8 = rng.random_range(0..=21);
+        match disc {
+            0 => Action::Fold,
+            1..=10 => Action::Check,
+            11..=20 => Action::Raise(10),
+            21 => Action::AllIn,
+            _ => unreachable!(),
+        }
     }
 }

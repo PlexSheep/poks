@@ -195,7 +195,16 @@ player_impl!(
 player_impl!(
     PlayerCPU,
     fn act(&self, _game: &Game) -> Action {
-        Action::Fold
+        let a = rand::random();
+        match a {
+            Action::Raise(bet) => {
+                if self.currency < bet {
+                    return Action::Check;
+                }
+                a
+            }
+            a => a,
+        }
     }
 );
 
