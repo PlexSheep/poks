@@ -128,6 +128,16 @@ impl PoksTUI {
 
         let you = &world.players[0];
 
+        let panels = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Length(2),
+                Constraint::Min(20),
+                Constraint::Min(40),
+                Constraint::Min(20),
+                Constraint::Length(2),
+            ])
+            .split(area);
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
@@ -137,12 +147,12 @@ impl PoksTUI {
                 Constraint::Length(3),
                 Constraint::Length(1),
             ])
-            .split(area);
+            .split(panels[2]);
         let layout_table = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Min(1),
-                Constraint::Length(26),
+                Constraint::Length(36),
                 Constraint::Min(1),
             ])
             .split(layout[1]);
@@ -157,6 +167,10 @@ impl PoksTUI {
             .split(layout[3]);
 
         frame.render_widget(
+            line_widget(self.render_action_log(), Borders::ALL, false),
+            panels[3],
+        );
+        frame.render_widget(
             line_widget(world.show_table(), Borders::ALL, true),
             layout_table[1],
         );
@@ -164,6 +178,20 @@ impl PoksTUI {
             line_widget(show_hand(*you.hand()), Borders::NONE, true),
             layout_phand[1],
         );
+    }
+
+    fn render_action_log(&self) -> String {
+        let ac = self.world.action_log();
+        let mut buf = String::with_capacity(ac.len() * 40);
+        for line in ac
+            .iter()
+            .rev()
+            .map(|(pid, action)| format!("Player {pid}: {action}"))
+        {
+            buf.push_str(&line);
+            buf.push('\n');
+        }
+        buf
     }
 }
 

@@ -6,7 +6,7 @@ use std::{
 
 use poker::Card;
 
-use crate::game::{Hand, Phase, World};
+use crate::game::{Action, Hand, Phase, PlayerState, World};
 
 struct Shortened;
 
@@ -27,6 +27,12 @@ impl Debug for World {
 }
 
 impl Display for Phase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Display for PlayerState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -75,5 +81,21 @@ impl IndexMut<usize> for Hand {
 impl Display for Hand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.0, self.1)
+    }
+}
+
+impl Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Action::HiddenWait => "is waiting...".to_string(),
+                Action::Fold => "folds".to_string(),
+                Action::Check => "checks".to_string(),
+                Action::Raise(bet) => format!("raises by {bet}"),
+                Action::AllIn => "goes all in!".to_string(),
+            }
+        )
     }
 }

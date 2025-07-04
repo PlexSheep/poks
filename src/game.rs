@@ -2,13 +2,18 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::{fmt::Debug, sync::RwLock};
 
+use circular_queue::CircularQueue;
 use poker::{Card, Evaluator};
-use tracing::trace;
+use tracing::{trace, warn};
 
 mod impls; // additional trait impls
 
 pub type Currency = u64;
 pub type Result<T> = color_eyre::Result<T>;
+
+pub static LOCAL_USER_ACTION_READY: AtomicBool = AtomicBool::new(false);
+pub static LOCAL_USER_ACTION: RwLock<Action> = RwLock::new(Action::Check);
+pub const ACTION_LOG_SIZE: usize = 2000;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Hand(Card, Card);
@@ -29,6 +34,7 @@ pub struct World {
     pub game: Game,
     deck: Vec<Card>,
     table_cards: Vec<Card>,
+    action_log: CircularQueue<(usize, Action)>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,7 +53,7 @@ pub enum Player {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
-    StillWaiting,
+    HiddenWait,
     Fold,
     Check,
     Raise(Currency),
@@ -98,9 +104,6 @@ pub struct PlayerCPU {
     hand: Option<Hand>,
     currency: Currency,
 }
-
-pub static LOCAL_USER_ACTION_READY: AtomicBool = AtomicBool::new(false);
-pub static LOCAL_USER_ACTION: RwLock<Action> = RwLock::new(Action::Check);
 
 macro_rules! call_enum_functions {
     ($self:expr,$($function:tt)+) => {
@@ -182,7 +185,7 @@ player_impl!(
 
         if !Self::get_action_is_ready() {
             trace!("waiting for action to be ready");
-            return Action::StillWaiting;
+            return Action::HiddenWait;
         }
         let a = Self::get_action();
         Self::set_action_is_ready(false);
@@ -226,6 +229,7 @@ impl World {
             players,
             table_cards: Vec::new(),
             deck,
+            action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
         };
         w.start_new_game();
         for player in &w.players {
@@ -249,7 +253,7 @@ impl World {
 
         for pi in 0..self.players.len() {
             let hand: Hand = [self.draw_card(), self.draw_card()].into();
-            let mut player = &mut self.players[pi];
+            let player = &mut self.players[pi];
             player.set_hand(hand);
         }
 
@@ -272,7 +276,11 @@ impl World {
         let player = &mut self.players[self.game.turn];
         let current_state = self.game.player_states[self.game.turn];
         if current_state != PlayerState::Playing {
-            todo!()
+            warn!(
+                "Player cannot do anything because they are {}",
+                current_state
+            );
+            return Ok(());
         }
         match action {
             Action::Fold => {
@@ -288,14 +296,15 @@ impl World {
                 player.set_currency(0);
             }
             Action::Check => (),
-            Action::StillWaiting => {
+            Action::HiddenWait => {
                 return Ok(());
             }
         }
+        self.action_log.push((self.game.turn, action));
         self.game.turn += 1;
         if self.game.turn >= self.players.len() {
             self.game.turn = 0;
-            todo!()
+            self.advance_phase()?;
         }
         Ok(())
     }
@@ -308,11 +317,31 @@ impl World {
                 .table_cards
                 .get(i)
                 .map(|c| c.to_string())
-                .unwrap_or("[  ]".to_string());
+                .unwrap_or("[    ]".to_string());
             buf.push_str(&card);
         }
 
         buf
+    }
+
+    fn advance_phase(&mut self) -> Result<()> {
+        match self.game.phase() {
+            Phase::Preflop => {
+                let _ = self.draw_card(); // burn card
+                for _ in 0..3 {
+                    let card = self.draw_card();
+                    self.table_cards.push(card);
+                }
+                assert_eq!(self.table_cards.len(), 3);
+                self.game.set_phase(Phase::Flop);
+            }
+            _ => todo!(),
+        }
+        Ok(())
+    }
+
+    pub fn action_log(&self) -> &CircularQueue<(usize, Action)> {
+        &self.action_log
     }
 }
 
