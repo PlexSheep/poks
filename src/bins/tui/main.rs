@@ -41,11 +41,14 @@ fn run(mut terminal: DefaultTerminal) -> Result<()> {
     let mut tui = PoksTUI::new();
 
     while !tui.should_exit() {
-        tui.update()?;
         terminal.draw(|f| tui.render(f))?;
 
-        let event = event::read()?;
-        tui.handle_event(event)?
+        if event::poll(EVENT_POLL_TIMEOUT)? {
+            let event = event::read()?;
+            tui.handle_event(event)?;
+        }
+        tui.update()?;
+        std::thread::sleep(Duration::from_millis(15));
     }
 
     Ok(())
