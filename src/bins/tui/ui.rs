@@ -97,15 +97,11 @@ impl PoksTUI {
     }
 
     fn controls(&self) -> String {
-        format!("F1: Fold, F2: Check, F3: Raise, F4: All in")
+        "F1: Fold, F2: Check, F3: Raise, F4: All in".to_string()
     }
 
     fn world(&self) -> &World {
         &self.world
-    }
-
-    fn world_mut(&mut self) -> &mut World {
-        &mut self.world
     }
 
     fn start_new_game(&mut self) {
@@ -115,11 +111,12 @@ impl PoksTUI {
     fn gamedata(&self) -> String {
         let game = &self.world().game;
         format!(
-            "Phase: {} | Turn of Player: {} | You are Player: {} | Pot: {}",
+            "Phase: {} | Turn of Player: {} | You are Player: {} | Pot: {} | Currency: {}€",
             game.phase(),
             game.turn,
             0,
-            game.pot()
+            game.pot(),
+            *self.world.players[0].currency()
         )
     }
 
@@ -184,12 +181,12 @@ impl PoksTUI {
     fn render_action_log(&self) -> String {
         let ac = self.world.action_log();
         let mut buf = String::with_capacity(ac.len() * 40);
-        for line in ac
-            .iter()
-            .rev()
-            .map(|(pid, action)| format!("Player {pid}: {action}"))
-        {
-            buf.push_str(&line);
+        for (pid, action) in ac.iter().rev() {
+            if let Some(pid) = pid {
+                buf.push_str(&format!("Player {pid}: {action}"));
+            } else {
+                buf.push_str(&action.to_string());
+            }
             buf.push('\n');
         }
         buf

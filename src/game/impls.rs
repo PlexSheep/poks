@@ -1,7 +1,6 @@
 use std::{
     fmt::{Debug, Display},
     ops::{Index, IndexMut},
-    usize,
 };
 
 use poker::Card;
@@ -95,6 +94,7 @@ impl Display for Action {
                 Action::Check => "checks".to_string(),
                 Action::Raise(bet) => format!("raises by {bet}"),
                 Action::AllIn => "goes all in!".to_string(),
+                Action::NewGame => "A new game has started".to_string(),
             }
         )
     }

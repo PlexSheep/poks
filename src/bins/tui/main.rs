@@ -2,7 +2,7 @@ use std::{fs::OpenOptions, time::Duration};
 
 use color_eyre::Result;
 use crossterm::event;
-use ratatui::{DefaultTerminal, prelude::*};
+use ratatui::DefaultTerminal;
 use tracing::Level;
 use tracing_subscriber::{Registry, filter, fmt, prelude::*};
 

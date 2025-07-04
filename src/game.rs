@@ -33,7 +33,7 @@ pub struct World {
     pub players: Vec<Player>,
     pub game: Game,
     deck: Vec<Card>,
-    action_log: CircularQueue<(usize, Action)>,
+    action_log: CircularQueue<(Option<usize>, Action)>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,6 +58,7 @@ pub enum Action {
     Check,
     Raise(Currency),
     AllIn,
+    NewGame,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -247,6 +248,7 @@ impl World {
     }
 
     pub fn start_new_game(&mut self) {
+        self.shuffle_cards();
         let game = Game::new(self.players.len());
 
         for pi in 0..self.players.len() {
@@ -297,8 +299,12 @@ impl World {
             Action::HiddenWait => {
                 return Ok(());
             }
+            _ => {
+                self.action_log.push((None, action));
+                return Ok(());
+            }
         }
-        self.action_log.push((self.game.turn, action));
+        self.action_log.push((Some(self.game.turn), action));
         self.game.turn += 1;
         if self.game.turn >= self.players.len() {
             self.game.turn = 0;
@@ -339,7 +345,7 @@ impl World {
         Ok(())
     }
 
-    pub fn action_log(&self) -> &CircularQueue<(usize, Action)> {
+    pub fn action_log(&self) -> &CircularQueue<(Option<usize>, Action)> {
         &self.action_log
     }
 }
