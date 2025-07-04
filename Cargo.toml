@@ -17,3 +17,6 @@ circular-queue = "0.2.7"
 [[bin]]
 name = "pokst"
 path = "src/bins/tui/main.rs"
+
+[dev-dependencies]
+ntest = "0.9.3"

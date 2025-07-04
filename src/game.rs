@@ -42,6 +42,7 @@ pub struct Game {
     pub player_states: Vec<PlayerState>,
     pub player_total_bets: Vec<Currency>,
     pub table_cards: Vec<Card>,
+    pub is_finished: bool,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -269,6 +270,7 @@ impl Game {
             player_states: vec![PlayerState::Playing; player_amount],
             player_total_bets: vec![0; player_amount],
             table_cards: Vec::with_capacity(5),
+            is_finished: false,
         }
     }
 
@@ -291,6 +293,10 @@ impl Game {
     pub fn highest_bet(&self) -> Currency {
         assert!(!self.player_total_bets.is_empty());
         *self.player_total_bets.iter().max().unwrap()
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.phase == Phase::River
     }
 }
 
