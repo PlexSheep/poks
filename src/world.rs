@@ -1,5 +1,6 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
+use tracing::warn;
 
 use crate::Result;
 use crate::game::{Game, GameState, PlayerID};
@@ -15,14 +16,18 @@ pub struct World {
 
 #[derive(Debug, Default)]
 pub struct WorldBuilder {
-    pub players: Vec<Box<dyn PlayerBehavior>>,
+    players: Vec<Box<dyn PlayerBehavior>>,
 }
 
 impl WorldBuilder {
     pub fn new() -> Self {
-        WorldBuilder {
-            players: Vec::with_capacity(4),
-        }
+        Self::default()
+    }
+
+    pub fn add_player(&mut self, player: Box<dyn PlayerBehavior>) -> Result<&mut Self> {
+        self.players.push(player);
+
+        Ok(self)
     }
 
     pub fn build(self) -> Result<World> {
@@ -40,6 +45,10 @@ impl WorldBuilder {
 }
 
 impl World {
+    pub fn builder() -> WorldBuilder {
+        WorldBuilder::default()
+    }
+
     pub fn start_new_game(&mut self) -> Result<()> {
         let game = Game::build(self.players.len())?;
         self.game = game;
@@ -51,8 +60,16 @@ impl World {
             return Ok(GameState::Finished);
         }
         debug_assert!(self.game.turn < self.players.len());
-        let player_action = self.players[self.game.turn].act(&self.game);
-        self.game.process_action(player_action)
+        let player_action = self.players[self.game.turn].act(&self.game)?;
+        if let Some(action) = player_action {
+            self.game.process_action(action)
+        } else {
+            warn!(
+                "Player {} has not made an action, waiting for them...",
+                self.game.turn
+            );
+            Ok(GameState::Ongoing)
+        }
     }
 
     pub fn action_log(&self) -> &CircularQueue<(Option<PlayerID>, String)> {

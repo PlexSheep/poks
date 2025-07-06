@@ -1,6 +1,6 @@
-use std::sync::atomic::AtomicBool;
-use std::{fmt::Debug, sync::RwLock};
+use std::fmt::Debug;
 
+use crate::Result;
 use crate::currency::Currency;
 use crate::game::{Action, Cards, Game};
 
@@ -18,7 +18,9 @@ pub trait PlayerBehavior: Debug {
     fn hand_mut(&mut self) -> &mut Option<Cards<2>>;
     fn currency(&self) -> &Currency;
     fn currency_mut(&mut self) -> &mut Currency;
-    fn act(&self, game: &Game) -> Action;
+    // TODO: add some functionality to ensure this isn't called too often, since it might be
+    // compute heavy
+    fn act(&mut self, game: &Game) -> Result<Option<Action>>;
 
     fn set_hand(&mut self, new: Cards<2>) {
         *self.hand_mut() = Some(new);
@@ -32,35 +34,32 @@ pub trait PlayerBehavior: Debug {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct PlayerLocal {
-    hand: Option<Cards<2>>,
-    currency: Currency,
+pub struct PlayerBasicFields {
+    pub hand: Option<Cards<2>>,
+    pub currency: Currency,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct PlayerCPU {
-    hand: Option<Cards<2>>,
-    currency: Currency,
+    base: PlayerBasicFields,
 }
 
-pub static LOCAL_USER_ACTION_READY: AtomicBool = AtomicBool::new(false);
-pub static LOCAL_USER_ACTION: RwLock<Action> = RwLock::new(Action::Check);
-
+#[macro_export]
 macro_rules! player_impl {
-    ($struct:ident, $($extra:tt)+) => {
-        impl PlayerBehavior for $struct {
-            fn hand(&self) -> &Option<Cards<2>> {
-                &self.hand
+    ($struct:ident, $base_field:tt, $($extra:tt)+) => {
+        impl $crate::player::PlayerBehavior for $struct {
+            fn hand(&self) -> &Option<$crate::game::Cards<2>> {
+                &self.$base_field.hand
             }
 
-            fn hand_mut(&mut self) -> &mut Option<Cards<2>> {
-                &mut self.hand
+            fn hand_mut(&mut self) -> &mut Option<$crate::game::Cards<2>> {
+                &mut self.$base_field.hand
             }
-            fn currency(&self) -> &Currency {
-                &self.currency
+            fn currency(&self) -> &$crate::currency::Currency {
+                &self.$base_field.currency
             }
-            fn currency_mut(&mut self) -> &mut Currency {
-                &mut self.currency
+            fn currency_mut(&mut self) -> &mut $crate::currency::Currency {
+                &mut self.$base_field.currency
             }
             $($extra)+
         }
@@ -69,16 +68,19 @@ macro_rules! player_impl {
 
 player_impl!(
     PlayerCPU,
-    fn act(&self, _game: &Game) -> Action {
-        let a = rand::random();
-        match a {
+    base,
+    fn act(&mut self, _game: &Game) -> Result<Option<Action>> {
+        let mut a = rand::random();
+        a = match a {
             Action::Raise(bet) => {
-                if self.currency < bet {
-                    return Action::Check;
+                if self.base.currency < bet {
+                    Action::Check
+                } else {
+                    a
                 }
-                a
             }
             a => a,
-        }
+        };
+        Ok(Some(a))
     }
 );
