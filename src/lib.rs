@@ -6,7 +6,7 @@ pub mod world;
 pub type Result<T> = color_eyre::Result<T>;
 
 /// Try to downcast any array of [u8] into an array of constant size
-pub fn len_to_const_arr<'a, const N: usize, T: 'a>(data: &'a [T]) -> Result<[T; N]>
+pub(crate) fn len_to_const_arr<'a, const N: usize, T: 'a>(data: &'a [T]) -> Result<[T; N]>
 where
     [T; N]: std::convert::TryFrom<&'a [T]>,
 {

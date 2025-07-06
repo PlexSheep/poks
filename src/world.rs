@@ -1,11 +1,10 @@
 use circular_queue::CircularQueue;
 use poker::{Card, Evaluator};
 use std::sync::Arc;
-use tracing::{debug, info};
 
-use crate::game::{Action, Game, GameState, Hand, Phase, PlayerID};
-use crate::player::{Player, PlayerBehavior, PlayerState};
-use crate::{Result, len_to_const_arr};
+use crate::Result;
+use crate::game::{Cards, Game, GameState, PlayerID};
+use crate::player::PlayerBehavior;
 
 mod impls; // trait impls
 
@@ -15,7 +14,6 @@ pub struct World {
     evaluator: Arc<Evaluator>,
     players: Vec<Box<dyn PlayerBehavior>>,
     pub game: Game,
-    deck: Vec<Card>,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
 }
 
@@ -37,7 +35,7 @@ impl WorldBuilder {
         debug_assert_eq!(deck.len(), 52);
         let mut w = World {
             evaluator,
-            game: Game::new(self.players.len()), // dummy
+            game: Game::build(self.players.len()), // dummy
             players: self.players,
             deck,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
@@ -63,10 +61,10 @@ impl World {
 
     pub fn start_new_game(&mut self) {
         self.shuffle_cards();
-        let game = Game::new(self.players.len());
+        let game = Game::build(self.players.len());
 
         for pi in 0..self.players.len() {
-            let hand: Hand = [self.draw_card(), self.draw_card()].into();
+            let hand: Cards<2> = [self.draw_card(), self.draw_card()];
             let player = &mut self.players[pi];
             player.set_hand(hand);
         }

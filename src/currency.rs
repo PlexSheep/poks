@@ -1,5 +1,6 @@
 use std::{
     fmt::Display,
+    iter::{Product, Sum},
     ops::{
         Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub,
         SubAssign,
@@ -158,6 +159,18 @@ impl DivAssign for Currency {
 impl RemAssign for Currency {
     fn rem_assign(&mut self, rhs: Self) {
         self.0 %= rhs.0
+    }
+}
+
+impl Sum for Currency {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.map(|c| c).sum()
+    }
+}
+
+impl Product for Currency {
+    fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.map(|c| c).product()
     }
 }
 

@@ -6,13 +6,23 @@ use std::{
 use poker::Card;
 use rand::{distr::StandardUniform, prelude::Distribution};
 
-use crate::game::{Action, Cards, CardsDynamic, Phase, PlayerState, Winner, show_cards};
+use crate::{
+    game::{Action, Cards, CardsDynamic, Phase, PlayerState, Winner, show_cards},
+    len_to_const_arr,
+};
 
 struct Shortened;
 
 impl CardsDynamic {
     pub const fn new() -> Self {
         Self { inner: Vec::new() }
+    }
+
+    pub fn try_static<const N: usize>(self) -> Option<Cards<N>> {
+        if N != self.len() {
+            return None;
+        }
+        len_to_const_arr(&self.inner).ok()
     }
 }
 

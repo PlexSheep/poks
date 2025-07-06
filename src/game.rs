@@ -1,14 +1,18 @@
 use std::fmt::Debug;
+use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
 
-use crate::player::{PlayerBehavior, PlayerState};
-use crate::{Result, len_to_const_arr};
+use crate::Result;
+use crate::currency::Currency;
+use crate::player::PlayerState;
 
 mod impls; // additional trait impls
 
 pub type PlayerID = usize;
 pub type Cards<const N: usize> = [Card; N];
+
+pub static EVALUATOR: OnceLock<Evaluator> = OnceLock::new();
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct CardsDynamic {
@@ -45,6 +49,7 @@ pub struct Game {
     pub players: Vec<Player>,
     pub community_cards: CardsDynamic,
     winner: Option<Winner>,
+    deck: Vec<Card>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -65,20 +70,34 @@ pub enum GameState {
 }
 
 impl Game {
-    pub fn new(player_amount: usize) -> Self {
-        Game {
+    pub fn build(player_amount: usize) -> Result<Self> {
+        assert!(player_amount > 0);
+        let mut deck = poker::deck::shuffled();
+        if player_amount > deck.len() / 2 {
+            // TODO: return a proper error and result
+            panic!("Not enough cards in a deck for this many players!")
+        }
+        let mut players = Vec::new();
+        for _ in 0..player_amount {
+            let hand: Cards<2> = [deck.pop().unwrap(), deck.pop().unwrap()];
+            players.push(Player::new(hand));
+        }
+        Ok(Game {
             turn: 0,
             phase: Phase::default(),
             players,
-            community_cards: [],
+            community_cards: CardsDynamic::new(),
             winner: None,
-        }
+            deck,
+        })
     }
 
+    #[must_use]
     pub fn phase(&self) -> Phase {
         self.phase
     }
 
+    #[must_use]
     pub fn phase_mut(&mut self) -> &mut Phase {
         &mut self.phase
     }
@@ -87,13 +106,16 @@ impl Game {
         self.phase = phase;
     }
 
+    #[must_use]
     pub fn pot(&self) -> Currency {
-        self.player_total_bets.iter().sum()
+        debug_assert!(!self.players.is_empty());
+        self.players.iter().map(|p| p.total_bet).sum()
     }
 
+    #[must_use]
     pub fn highest_bet(&self) -> Currency {
-        assert!(!self.player_total_bets.is_empty());
-        *self.player_total_bets.iter().max().unwrap()
+        debug_assert!(!self.players.is_empty());
+        self.players.iter().map(|p| p.total_bet).max().unwrap()
     }
 
     pub fn is_finished(&self) -> bool {
@@ -141,37 +163,53 @@ impl Game {
     }
 
     pub fn showdown(&mut self) -> Result<Winner> {
-        let mut evals = Vec::new();
+        let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
         for (pid, player) in self.players.iter().enumerate() {
             if player.state != PlayerState::Playing {
                 continue;
             }
             let mut hand_plus_table: CardsDynamic = player.hand.into();
-            hand_plus_table.extend(&self.community_cards);
+            hand_plus_table.extend(self.community_cards.iter());
             // TODO: add better result type and return this as error
             evals.push((
                 pid,
-                self.evaluator
-                    .evaluate_five(&hand_plus_table)
+                evaluator()
+                    .evaluate_five(&*hand_plus_table)
                     .expect("could not evaluate"),
-                len_to_const_arr(&hand_plus_table)?,
+                hand_plus_table
+                    .try_static()
+                    .expect("Hands plus table were not 7 cards"),
             ));
         }
 
         evals.sort_by(|a, b| a.1.cmp(&b.1));
         let winner = Winner::KnownCards(evals[0].0, evals[0].1, evals[0].2);
-        self.game.set_winner(winner);
+        self.set_winner(winner);
 
         Ok(winner)
     }
 
+    #[must_use]
     pub fn process_action(&self, action: Action) -> Result<GameState> {
         todo!()
     }
 }
 
-pub fn show_hand(h: Option<Hand>) -> String {
-    h.map(|h| h.to_string()).unwrap_or("(No Hand)".to_string())
+impl Player {
+    #[must_use]
+    #[inline]
+    pub fn show_hand(&self) -> String {
+        show_cards(&self.hand)
+    }
+
+    pub fn new(hand: Cards<2>) -> Self {
+        Self {
+            state: Default::default(),
+            total_bet: Default::default(),
+            round_bet: Default::default(),
+            hand,
+        }
+    }
 }
 
 pub fn show_cards(cards: &[Card]) -> String {
@@ -180,4 +218,9 @@ pub fn show_cards(cards: &[Card]) -> String {
         buf.push_str(&card.to_string());
     }
     buf
+}
+
+#[inline]
+pub fn evaluator() -> &'static Evaluator {
+    EVALUATOR.get_or_init(|| Evaluator::new())
 }
