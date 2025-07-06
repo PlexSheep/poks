@@ -3,9 +3,9 @@ use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
 
-use crate::Result;
-use crate::currency::Currency;
-use crate::player::PlayerState;
+use crate::currency::{self, Currency};
+use crate::player::{PlayerBehavior, PlayerState};
+use crate::{CU, Result, player_impl};
 
 mod impls; // additional trait impls
 
@@ -34,7 +34,7 @@ pub enum Winner {
     KnownCards(PlayerID, Eval<FiveCard>, Cards<7>),
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Player {
     state: PlayerState,
     total_bet: Currency,
@@ -56,19 +56,27 @@ pub struct Game {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     Fold,
-    Call,
+    Call(Currency),
     Check,
     Raise(Currency),
-    AllIn,
+    AllIn(Currency),
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[non_exhaustive]
 pub enum GameState {
     #[default]
-    Ongoing,
+    RaiseAllowed,
+    RaiseDisallowed,
     Pause,
     Finished,
+}
+
+// helper macros
+macro_rules! current_player {
+    ($self:tt) => {
+        $self.players[$self.turn]
+    };
 }
 
 impl Game {
@@ -116,11 +124,12 @@ impl Game {
     }
 
     #[must_use]
-    pub fn highest_bet(&self) -> Currency {
+    pub fn highest_bet_of_round(&self) -> Currency {
         debug_assert!(!self.players.is_empty());
-        self.players.iter().map(|p| p.total_bet).max().unwrap()
+        self.players.iter().map(|p| p.round_bet).max().unwrap()
     }
 
+    #[must_use]
     pub fn is_finished(&self) -> bool {
         self.winner.is_some()
     }
@@ -129,6 +138,7 @@ impl Game {
         self.winner = Some(w);
     }
 
+    #[must_use]
     pub fn winner(&self) -> Option<Winner> {
         self.winner
     }
@@ -197,9 +207,60 @@ impl Game {
         Ok(winner)
     }
 
-    pub fn process_action(&self, action: Action) -> Result<()> {
-        self.state = todo!();
-        todo!()
+    pub fn process_action(&mut self, action: Action) -> Result<()> {
+        if !current_player!(self).state.is_playing() {
+            todo!("Error: player not playing and cant make action")
+        }
+
+        let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
+        if remaining_players == 1 {
+            todo!("Player is the last remaining one, let them win without showing cards")
+        }
+
+        let round_bet = self.highest_bet_of_round();
+        let player = &mut current_player!(self);
+
+        if player.state == PlayerState::AllIn {
+            return Ok(());
+        }
+        match action {
+            Action::Fold => {
+                player.state = PlayerState::Folded;
+            }
+            Action::Call(currency) => {
+                if round_bet <= player.round_bet {
+                    todo!("Cannot call when you are not under the round bet")
+                }
+                let diff = round_bet - player.round_bet;
+                if diff != currency {
+                    todo!("Error: currency call mismatch ({diff} != {currency})")
+                }
+                player.round_bet += currency;
+            }
+            Action::Check => {
+                if round_bet == CU!(0) {
+                    todo!("Error: action not allowed: total bet less than highest bet")
+                }
+            }
+            Action::Raise(currency) => {
+                if self.state != GameState::RaiseDisallowed {
+                    todo!("No betting allowed, just calling")
+                }
+                player.round_bet += currency;
+            }
+            Action::AllIn(currency) => {
+                if player.state == PlayerState::AllIn {
+                    todo!("Error: player is already all in")
+                }
+                if self.state != GameState::RaiseDisallowed {
+                    todo!("No betting allowed, just calling")
+                }
+                player.state = PlayerState::AllIn;
+                player.round_bet += currency;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn show_table(&self) -> String {
@@ -268,6 +329,17 @@ impl Player {
 
     pub fn round_bet(&self) -> Currency {
         self.round_bet
+    }
+}
+
+impl GameState {
+    #[inline]
+    #[must_use]
+    pub fn is_ongoing(&self) -> bool {
+        match self {
+            GameState::RaiseAllowed | GameState::RaiseDisallowed => true,
+            GameState::Pause | GameState::Finished => false,
+        }
     }
 }
 

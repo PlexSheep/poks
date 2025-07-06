@@ -44,10 +44,10 @@ impl Display for Action {
             "{}",
             match self {
                 Action::Fold => "folds".to_string(),
-                Action::Call => "calls".to_string(),
+                Action::Call(bet) => format!("calls for {bet}"),
                 Action::Check => "checks".to_string(),
                 Action::Raise(bet) => format!("raises by {bet}"),
-                Action::AllIn => "goes all in!".to_string(),
+                Action::AllIn(bet) => format!("goes all in! ({bet})"),
             }
         )
     }

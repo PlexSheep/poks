@@ -8,6 +8,7 @@ use crate::game::{Action, Cards, Game};
 pub enum PlayerState {
     #[default]
     Playing,
+    AllIn,
     Folded,
     Paused,
     Lost,
@@ -84,3 +85,14 @@ player_impl!(
         Ok(Some(a))
     }
 );
+
+impl PlayerState {
+    #[inline]
+    #[must_use]
+    pub fn is_playing(&self) -> bool {
+        match self {
+            PlayerState::Playing | PlayerState::AllIn => true,
+            PlayerState::Folded | PlayerState::Paused | PlayerState::Lost => false,
+        }
+    }
+}

@@ -65,9 +65,17 @@ impl World {
             todo!("Game is finished, add error")
         }
         debug_assert!(self.game.turn() < self.players.len());
-        let player_action = self.players[self.game.turn()].act(&self.game)?;
+        let pid = self.game.turn();
+        let player = &mut self.players[pid];
+        let player_action = player.act(&self.game)?;
         if let Some(action) = player_action {
-            self.game.process_action(action)
+            match self.game.process_action(action) {
+                Ok(_) => {
+                    self.action_log.push((Some(pid), action.to_string()));
+                    Ok(())
+                }
+                Err(e) => return Err(e),
+            }
         } else {
             warn!(
                 "Player {} has not made an action, waiting for them...",
