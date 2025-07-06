@@ -1,6 +1,7 @@
 pub mod currency;
 pub mod game;
 pub mod player;
+pub mod world;
 
 pub type Result<T> = color_eyre::Result<T>;
 
