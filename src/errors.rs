@@ -1,5 +1,6 @@
 use crate::currency::Currency;
 use crate::game::PlayerID;
+use crate::player::PlayerState;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, PoksError>;
@@ -22,7 +23,7 @@ pub enum PoksError {
     #[error("Player {player_id} is not in a playing state (current state: {current_state})")]
     PlayerNotPlaying {
         player_id: PlayerID,
-        current_state: String,
+        current_state: PlayerState,
     },
 
     #[error("Player {player_id} is already all-in")]
@@ -126,10 +127,10 @@ impl PoksError {
         }
     }
 
-    pub fn player_not_playing(player_id: PlayerID, current_state: impl Into<String>) -> Self {
+    pub fn player_not_playing(player_id: PlayerID, current_state: PlayerState) -> Self {
         Self::PlayerNotPlaying {
             player_id,
-            current_state: current_state.into(),
+            current_state: current_state,
         }
     }
 

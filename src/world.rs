@@ -4,7 +4,7 @@ use tracing::{trace, warn};
 
 use crate::Result;
 use crate::errors::PoksError;
-use crate::game::{Game, PlayerID};
+use crate::game::{Game, PlayerID, Winner};
 use crate::player::PlayerBehavior;
 use crate::transaction::Transaction;
 
@@ -87,6 +87,8 @@ impl World {
             transaction.finish(player.currency_mut(), Transaction::garbage())?;
         }
         if self.game.is_finished() {
+            let winner: Winner = self.game.winner().unwrap();
+            winner.payout(&self.game, player)?;
             self.action_log
                 .push((None, self.game.winner().unwrap().to_string()));
         }

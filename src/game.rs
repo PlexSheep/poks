@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
@@ -117,13 +117,17 @@ impl Game {
     }
 
     pub fn set_phase(&mut self, phase: Phase) {
+        for player in self.players.iter_mut() {
+            player.total_bet += player.round_bet;
+            player.round_bet = Currency::ZERO;
+        }
         self.phase = phase;
     }
 
     #[must_use]
     pub fn pot(&self) -> Currency {
         debug_assert!(!self.players.is_empty());
-        self.players.iter().map(|p| p.total_bet).sum()
+        self.players.iter().map(|p| p.total_bet + p.round_bet).sum()
     }
 
     #[must_use]
@@ -203,7 +207,7 @@ impl Game {
             ));
         }
 
-        evals.sort_by(|a, b| a.1.cmp(&b.1));
+        evals.sort_by(|a, b| b.1.cmp(&a.1));
         let winner = Winner::KnownCards(evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
 
@@ -217,7 +221,6 @@ impl Game {
         }
     }
 
-    // TODO: give player as argument so we can make transactions here!
     pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
         let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
         if remaining_players == 1 {
@@ -229,7 +232,6 @@ impl Game {
                 .map(|(id, _)| id)
                 .ok_or_else(|| err_int!("No playing players found"))?;
 
-            todo!("actually transfer the funds");
             self.set_winner(Winner::UnknownCards(winner_id));
             return Ok(());
         }
@@ -247,10 +249,11 @@ impl Game {
         };
 
         if !current_player!(self).state.is_playing() {
-            return Err(PoksError::player_not_playing(
-                self.turn,
-                format!("{:?}", current_player!(self).state),
-            ));
+            return Ok(()); // ignore
+            // return Err(PoksError::player_not_playing(
+            //     self.turn,
+            //     format!("{:?}", current_player!(self).state),
+            // ));
         }
 
         if current_player!(self).state == PlayerState::AllIn {
@@ -334,6 +337,7 @@ impl Game {
 
     pub fn action_call(&self) -> Action {
         let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
+        debug!("Building call action with {diff}");
         Action::Call(diff)
     }
 }
@@ -394,6 +398,26 @@ impl Action {
     #[inline]
     pub fn check() -> Self {
         Self::Call(CU!(0))
+    }
+}
+
+impl Winner {
+    pub fn payout(&self, game: &Game, player: &mut AnyPlayer) -> Result<()> {
+        info!("Payout!");
+        let old = *player.currency();
+        let winnings = game.pot();
+        debug!("WTF? {:?}", game.players);
+        assert!(winnings > CU!(0));
+        *player.currency_mut() += game.pot();
+        assert_eq!(old + winnings, *player.currency());
+        Ok(())
+    }
+
+    pub fn pid(&self) -> PlayerID {
+        match self {
+            Winner::UnknownCards(pid) => *pid,
+            Winner::KnownCards(pid, ..) => *pid,
+        }
     }
 }
 

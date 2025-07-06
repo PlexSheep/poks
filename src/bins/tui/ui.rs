@@ -57,15 +57,12 @@ impl PoksTUI {
         self.should_exit
     }
 
-    fn gamestate(&self) -> GameState {
-        self.world.game.state()
-    }
-
     pub fn update(&mut self) -> Result<()> {
         self.frame += 1;
         if self.world().game.is_finished() {
             let winner = self.world.game.winner().expect("no winner despite win");
             self.message = Some("Game finished. Press F6 for a new game.".to_string());
+            self.start_new_game();
         } else {
             self.world.tick_game()?;
         }
@@ -171,7 +168,7 @@ impl PoksTUI {
         let world = self.world();
         debug_assert!(!world.players().is_empty());
 
-        let you = &world.game.players()[world.game.turn()];
+        let you = &world.game.players()[self.player_id];
 
         let panels = Layout::default()
             .direction(Direction::Horizontal)
