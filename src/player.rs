@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use crate::Result;
 use crate::currency::Currency;
 use crate::game::{Action, Cards, Game};
+use crate::{CU, Result};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum PlayerState {
@@ -73,9 +73,10 @@ player_impl!(
     fn act(&mut self, game: &Game) -> Result<Option<Action>> {
         let mut a = rand::random();
         a = match a {
+            Action::Call(bet) if bet == CU!(0) => game.action_call(),
             Action::Raise(bet) => {
                 if self.base.currency < bet {
-                    game.action_check()
+                    game.action_call()
                 } else {
                     a
                 }

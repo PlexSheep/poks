@@ -89,7 +89,7 @@ impl PoksTUI {
                 KeyCode::F(1) => PlayerLocal::set_action(&self.player_af, Action::Fold),
                 // TODO: call needs calculation of diff
                 KeyCode::F(2) => {
-                    PlayerLocal::set_action(&self.player_af, self.world().game.action_check())
+                    PlayerLocal::set_action(&self.player_af, self.world().game.action_call())
                 }
                 KeyCode::F(3) => PlayerLocal::set_action(&self.player_af, Action::Raise(CU!(10))),
                 KeyCode::F(4) => PlayerLocal::set_action(&self.player_af, Action::Raise(CU!(50))),

@@ -1,7 +1,6 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
-use std::result;
-use tracing::warn;
+use tracing::{trace, warn};
 
 use crate::Result;
 use crate::errors::PoksError;
@@ -73,12 +72,6 @@ impl World {
         let pid = self.game.turn();
         let player = &mut self.players[pid];
         let action = player.act(&self.game)?;
-        if action.is_none() {
-            warn!(
-                "Player {} has not made an action, waiting for them...",
-                self.game.turn()
-            );
-        }
         let possible_transaction = action.map(|a| a.prepare_transaction());
         let res = match self.game.process_action(action) {
             Ok(_) if action.is_none() => Ok(()),

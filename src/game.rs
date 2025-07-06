@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
+use tracing::debug;
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
@@ -331,7 +332,7 @@ impl Game {
         self.state
     }
 
-    pub fn action_check(&self) -> Action {
+    pub fn action_call(&self) -> Action {
         let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
         Action::Call(diff)
     }
