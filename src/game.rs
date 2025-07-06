@@ -366,7 +366,6 @@ impl Game {
 
     pub fn action_call(&self) -> Action {
         let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
-        debug!("Building call action with {diff}");
         Action::Call(diff)
     }
 
