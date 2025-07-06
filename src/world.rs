@@ -88,7 +88,8 @@ impl World {
         }
         if self.game.is_finished() {
             let winner: Winner = self.game.winner().unwrap();
-            winner.payout(&self.game, player)?;
+            let winning_player = &mut self.players[winner.pid()];
+            winner.payout(&self.game, winning_player)?;
             self.action_log
                 .push((None, self.game.winner().unwrap().to_string()));
         }

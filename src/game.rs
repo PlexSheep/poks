@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
@@ -406,10 +406,12 @@ impl Winner {
         info!("Payout!");
         let old = *player.currency();
         let winnings = game.pot();
-        debug!("WTF? {:?}", game.players);
-        assert!(winnings > CU!(0));
+        if winnings == CU!(0) {
+            warn!("Winnings are zero this round!")
+        }
         *player.currency_mut() += game.pot();
         assert_eq!(old + winnings, *player.currency());
+        debug!("After Payout? {}", player.currency());
         Ok(())
     }
 
