@@ -174,13 +174,21 @@ impl RemAssign for Currency {
 
 impl Sum for Currency {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.map(|c| c).sum()
+        let mut acc = Currency::new(0, 0);
+        for c in iter {
+            acc += c;
+        }
+        acc
     }
 }
 
 impl Product for Currency {
     fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.map(|c| c).product()
+        let mut acc = Currency::new(0, 0);
+        for c in iter {
+            acc *= c;
+        }
+        acc
     }
 }
 
