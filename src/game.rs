@@ -194,9 +194,23 @@ impl Game {
         Ok(winner)
     }
 
-    #[must_use]
     pub fn process_action(&self, action: Action) -> Result<GameState> {
         todo!()
+    }
+
+    pub fn show_table(&self) -> String {
+        let mut buf = String::new();
+
+        for i in 0..5 {
+            let card: String = self
+                .community_cards
+                .get(i)
+                .map(|c| c.to_string())
+                .unwrap_or("[    ]".to_string());
+            buf.push_str(&card);
+        }
+
+        buf
     }
 }
 

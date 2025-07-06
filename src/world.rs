@@ -1,17 +1,13 @@
 use circular_queue::CircularQueue;
-use poker::{Card, Evaluator};
-use std::sync::Arc;
+use std::fmt::Debug;
 
 use crate::Result;
-use crate::game::{Cards, Game, GameState, PlayerID};
+use crate::game::{Game, GameState, PlayerID};
 use crate::player::PlayerBehavior;
-
-mod impls; // trait impls
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
 pub struct World {
-    evaluator: Arc<Evaluator>,
     players: Vec<Box<dyn PlayerBehavior>>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
@@ -29,47 +25,25 @@ impl WorldBuilder {
         }
     }
 
-    pub fn build(self) -> World {
-        let evaluator = Evaluator::new().into();
-        let deck = poker::deck::shuffled();
-        debug_assert_eq!(deck.len(), 52);
+    pub fn build(self) -> Result<World> {
         let mut w = World {
-            evaluator,
-            game: Game::build(self.players.len()), // dummy
+            game: Game::build(self.players.len()).unwrap(), // dummy
             players: self.players,
-            deck,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
         };
-        w.start_new_game();
+        w.start_new_game()?;
         for player in &w.players {
             assert!(player.hand().is_some())
         }
-        w
+        Ok(w)
     }
 }
 
 impl World {
-    pub fn shuffle_cards(&mut self) {
-        self.deck = poker::deck::shuffled();
-        debug_assert_eq!(self.deck.len(), 52)
-    }
-
-    #[must_use]
-    pub fn draw_card(&mut self) -> Card {
-        self.deck.pop().expect("the deck was empty!")
-    }
-
-    pub fn start_new_game(&mut self) {
-        self.shuffle_cards();
-        let game = Game::build(self.players.len());
-
-        for pi in 0..self.players.len() {
-            let hand: Cards<2> = [self.draw_card(), self.draw_card()];
-            let player = &mut self.players[pi];
-            player.set_hand(hand);
-        }
-
+    pub fn start_new_game(&mut self) -> Result<()> {
+        let game = Game::build(self.players.len())?;
         self.game = game;
+        Ok(())
     }
 
     pub fn tick_game(&mut self) -> Result<GameState> {
@@ -81,28 +55,17 @@ impl World {
         self.game.process_action(player_action)
     }
 
-    fn next_turn(&mut self) {
-        self.game.turn = (self.game.turn + 1) % self.players.len();
-        todo!("Advance phase if all players are done with this turn")
-    }
-
-    pub fn show_table(&self) -> String {
-        let mut buf = String::new();
-
-        for i in 0..5 {
-            let card: String = self
-                .game
-                .community_cards
-                .get(i)
-                .map(|c| c.to_string())
-                .unwrap_or("[    ]".to_string());
-            buf.push_str(&card);
-        }
-
-        buf
-    }
-
     pub fn action_log(&self) -> &CircularQueue<(Option<PlayerID>, String)> {
         &self.action_log
+    }
+}
+
+impl Debug for World {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("World")
+            .field("players", &self.players)
+            .field("game", &self.game)
+            .field("action_log", &self.action_log)
+            .finish()
     }
 }
