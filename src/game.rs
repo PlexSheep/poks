@@ -4,9 +4,11 @@ use std::sync::OnceLock;
 use poker::{Card, Eval, Evaluator, FiveCard};
 
 use crate::currency::Currency;
+use crate::errors::PoksError;
 use crate::player::{PlayerBehavior, PlayerState};
 use crate::transaction::Transaction;
-use crate::{CU, Result};
+use crate::world::AnyPlayer;
+use crate::{CU, Result, err_int};
 
 mod impls; // additional trait impls
 
@@ -214,10 +216,21 @@ impl Game {
         }
     }
 
+    // TODO: give player as argument so we can make transactions here!
     pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
         let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
         if remaining_players == 1 {
-            todo!("Player is the last remaining one, let them win without showing cards")
+            let winner_id = self
+                .players
+                .iter()
+                .enumerate()
+                .find(|(_, p)| p.state.is_playing())
+                .map(|(id, _)| id)
+                .ok_or_else(|| err_int!("No playing players found"))?;
+
+            todo!("actually transfer the funds");
+            self.set_winner(Winner::UnknownCards(winner_id));
+            return Ok(());
         }
 
         let round_bet = self.highest_bet_of_round();
@@ -233,7 +246,10 @@ impl Game {
         };
 
         if !current_player!(self).state.is_playing() {
-            todo!("Error: player not playing and cant make action")
+            return Err(PoksError::player_not_playing(
+                self.turn,
+                format!("{:?}", current_player!(self).state),
+            ));
         }
 
         if current_player!(self).state == PlayerState::AllIn {
@@ -245,12 +261,12 @@ impl Game {
                 current_player!(self).state = PlayerState::Folded;
             }
             Action::Call(currency) => {
-                if round_bet <= current_player!(self).round_bet {
-                    todo!("Cannot call when you are not under the round bet")
+                if round_bet < current_player!(self).round_bet {
+                    return Err(PoksError::InvalidCall);
                 }
                 let diff = round_bet - current_player!(self).round_bet;
                 if diff != currency {
-                    todo!("Error: currency call mismatch ({diff} != {currency})")
+                    return Err(PoksError::call_mismatch(diff, currency));
                 }
                 if currency != CU!(0) {
                     current_player!(self).round_bet += currency;
@@ -258,13 +274,15 @@ impl Game {
             }
             Action::Raise(currency) => {
                 if self.state == GameState::RaiseDisallowed {
-                    todo!("No betting allowed, just calling")
+                    return Err(PoksError::RaiseNotAllowed);
                 }
                 current_player!(self).round_bet += currency;
             }
             Action::AllIn(currency) => {
                 if current_player!(self).state == PlayerState::AllIn {
-                    todo!("Error: player is already all in")
+                    return Err(PoksError::PlayerAlreadyAllIn {
+                        player_id: self.turn,
+                    });
                 }
                 if self.state != GameState::RaiseDisallowed {
                     todo!("No betting allowed, just calling")

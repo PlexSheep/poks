@@ -1,8 +1,10 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
+use std::result;
 use tracing::warn;
 
 use crate::Result;
+use crate::errors::PoksError;
 use crate::game::{Game, PlayerID};
 use crate::player::PlayerBehavior;
 use crate::transaction::Transaction;
@@ -65,7 +67,7 @@ impl World {
 
     pub fn tick_game(&mut self) -> Result<()> {
         if self.game.is_finished() {
-            todo!("Game is finished, add error")
+            return Err(PoksError::GameFinished);
         }
         debug_assert!(self.game.turn() < self.players.len());
         let pid = self.game.turn();

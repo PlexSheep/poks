@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use poks::Result;
+use poks::errors::Result;
 use poks::game::{Action, Game};
 use poks::{player::PlayerBasicFields, player_impl};
 
