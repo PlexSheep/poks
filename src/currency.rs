@@ -28,29 +28,29 @@ impl Currency {
     pub const ONE: Currency = Currency(100);
     pub const ZERO: Currency = Currency(0);
 
-    pub fn new(credits: u64, cents: u64) -> Self {
+    pub const fn new(credits: u64, cents: u64) -> Self {
         Self(credits * 100 + cents)
     }
 
-    pub fn inner(&self) -> &u64 {
+    pub const fn inner(&self) -> &u64 {
         &self.0
     }
 
-    pub fn inner_mut(&mut self) -> &mut u64 {
+    pub const fn inner_mut(&mut self) -> &mut u64 {
         &mut self.0
     }
 
     /// Get ONLY the cents part
-    pub fn cents(&self) -> u64 {
+    pub const fn cents(&self) -> u64 {
         self.0 % 100
     }
 
     /// Get ONLY the major part, without cents
-    pub fn credits(&self) -> u64 {
+    pub const fn credits(&self) -> u64 {
         self.round_cents().0 / 100
     }
 
-    pub fn round_cents(&self) -> Self {
+    pub const fn round_cents(&self) -> Self {
         let cents = self.cents();
         if cents < 50 {
             Self(self.0 - cents)
@@ -59,7 +59,7 @@ impl Currency {
         }
     }
 
-    pub fn as_float(&self) -> f64 {
+    pub const fn as_float(&self) -> f64 {
         self.0 as f64 / 100.0
     }
 }

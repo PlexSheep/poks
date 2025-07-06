@@ -5,18 +5,21 @@ use tracing::warn;
 use crate::Result;
 use crate::game::{Game, PlayerID};
 use crate::player::PlayerBehavior;
+use crate::transaction::Transaction;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
+pub type AnyPlayer = Box<dyn PlayerBehavior>;
+
 pub struct World {
-    players: Vec<Box<dyn PlayerBehavior>>,
+    players: Vec<AnyPlayer>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
 }
 
 #[derive(Debug, Default)]
 pub struct WorldBuilder {
-    players: Vec<Box<dyn PlayerBehavior>>,
+    players: Vec<AnyPlayer>,
 }
 
 impl WorldBuilder {
@@ -24,7 +27,7 @@ impl WorldBuilder {
         Self::default()
     }
 
-    pub fn add_player(&mut self, player: Box<dyn PlayerBehavior>) -> Result<&mut Self> {
+    pub fn add_player(&mut self, player: AnyPlayer) -> Result<&mut Self> {
         self.players.push(player);
 
         Ok(self)
@@ -74,6 +77,7 @@ impl World {
                 self.game.turn()
             );
         }
+        let possible_transaction = action.map(|a| a.prepare_transaction());
         let res = match self.game.process_action(action) {
             Ok(_) if action.is_none() => Ok(()),
             Ok(_) => {
@@ -83,6 +87,10 @@ impl World {
             }
             Err(e) => Err(e),
         };
+        if let Some(Some(transaction)) = possible_transaction {
+            // NOTE: adding is done by the game functionalities
+            transaction.finish(player.currency_mut(), Transaction::garbage())?;
+        }
         if self.game.is_finished() {
             self.action_log
                 .push((None, self.game.winner().unwrap().to_string()));
@@ -94,7 +102,7 @@ impl World {
         &self.action_log
     }
 
-    pub fn players(&self) -> &[Box<dyn PlayerBehavior>] {
+    pub fn players(&self) -> &[AnyPlayer] {
         &self.players
     }
 }

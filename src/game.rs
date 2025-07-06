@@ -5,6 +5,7 @@ use poker::{Card, Eval, Evaluator, FiveCard};
 
 use crate::currency::{self, Currency};
 use crate::player::{PlayerBehavior, PlayerState};
+use crate::transaction::Transaction;
 use crate::{CU, Result, player_impl};
 
 mod impls; // additional trait impls
@@ -358,6 +359,17 @@ impl GameState {
         match self {
             GameState::RaiseAllowed | GameState::RaiseDisallowed => true,
             GameState::Pause | GameState::Finished => false,
+        }
+    }
+}
+
+impl Action {
+    pub fn prepare_transaction(&self) -> Option<Transaction> {
+        match self {
+            Action::Call(currency) | Action::Raise(currency) | Action::AllIn(currency) => {
+                Some(Transaction::new(*currency))
+            }
+            Action::Fold | Action::Check => None,
         }
     }
 }
