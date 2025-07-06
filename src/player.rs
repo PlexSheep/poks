@@ -3,12 +3,6 @@ use std::{fmt::Debug, sync::RwLock};
 
 use crate::game::{Action, Currency, Game, Hand};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Player {
-    Local(PlayerLocal),
-    CPU(PlayerCPU),
-}
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PlayerState {
     Playing,
@@ -17,7 +11,7 @@ pub enum PlayerState {
     Lost,
 }
 
-pub trait PlayerBehavior {
+pub trait PlayerBehavior: Debug {
     fn hand(&self) -> &Option<Hand>;
     fn hand_mut(&mut self) -> &mut Option<Hand>;
     fn currency(&self) -> &Currency;
@@ -59,27 +53,6 @@ macro_rules! call_enum_functions {
     };
 }
 
-impl PlayerBehavior for Player {
-    fn hand(&self) -> &Option<Hand> {
-        call_enum_functions!(self, hand())
-    }
-
-    fn hand_mut(&mut self) -> &mut Option<Hand> {
-        call_enum_functions!(self, hand_mut())
-    }
-
-    fn currency(&self) -> &Currency {
-        call_enum_functions!(self, currency())
-    }
-
-    fn currency_mut(&mut self) -> &mut Currency {
-        call_enum_functions!(self, currency_mut())
-    }
-    fn act(&self, game: &Game) -> Action {
-        call_enum_functions!(self, act(game))
-    }
-}
-
 macro_rules! player_impl {
     ($struct:ident, $($extra:tt)+) => {
         impl PlayerBehavior for $struct {
@@ -101,41 +74,6 @@ macro_rules! player_impl {
     };
 }
 
-impl PlayerLocal {
-    pub fn set_action_is_ready(ready: bool) {
-        LOCAL_USER_ACTION_READY.store(ready, std::sync::atomic::Ordering::Relaxed);
-    }
-    pub fn get_action_is_ready() -> bool {
-        LOCAL_USER_ACTION_READY.load(std::sync::atomic::Ordering::Relaxed)
-    }
-    pub fn set_action(action: Action) {
-        *LOCAL_USER_ACTION
-            .write()
-            .expect("could not read local user action") = action;
-        Self::set_action_is_ready(true);
-    }
-    pub fn get_action() -> Action {
-        assert!(Self::get_action_is_ready());
-        *LOCAL_USER_ACTION
-            .read()
-            .expect("could not read local user action")
-    }
-}
-
-player_impl!(
-    PlayerLocal,
-    fn act(&self, _game: &Game) -> Action {
-        // HACK: this is horrible from design, I should have some way to pass an argument to this
-        // from the ui!
-
-        if !Self::get_action_is_ready() {
-            return Action::HiddenWait;
-        }
-        let a = Self::get_action();
-        Self::set_action_is_ready(false);
-        a
-    }
-);
 player_impl!(
     PlayerCPU,
     fn act(&self, _game: &Game) -> Action {
@@ -151,18 +89,3 @@ player_impl!(
         }
     }
 );
-
-impl Player {
-    pub const fn local(currency: Currency) -> Self {
-        Self::Local(PlayerLocal {
-            hand: None,
-            currency,
-        })
-    }
-    pub const fn cpu(currency: Currency) -> Self {
-        Self::CPU(PlayerCPU {
-            hand: None,
-            currency,
-        })
-    }
-}
