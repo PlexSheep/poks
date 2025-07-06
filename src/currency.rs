@@ -47,7 +47,7 @@ impl Currency {
 
     /// Get ONLY the major part, without cents
     pub const fn credits(&self) -> u64 {
-        self.round_cents().0 / 100
+        self.0 / 100
     }
 
     pub const fn round_cents(&self) -> Self {
@@ -226,6 +226,10 @@ mod test {
         assert_eq!(Currency(10).to_string(), "0,10ŧ");
         assert_eq!(Currency(1).to_string(), "0,01ŧ");
         assert_eq!(Currency(0).to_string(), "0,00ŧ");
+
+        assert_eq!(crate::currency::Currency::new(1, 50).to_string(), "1,50ŧ");
+        assert_eq!(CU!(1, 50).to_string(), "1,50ŧ");
+        assert_eq!(CU!(0, 50).to_string(), "0,50ŧ");
     }
 
     #[test]
@@ -236,5 +240,12 @@ mod test {
         assert_eq!(Currency(33) / Currency(11), Currency(3));
         assert_eq!(Currency(33) % Currency(11), Currency(0));
         assert_eq!(Currency(33) % Currency(10), Currency(3));
+    }
+
+    #[test]
+    fn test_currency_roundct() {
+        assert_eq!(CU!(1, 33).round_cents(), CU!(1));
+        assert_eq!(CU!(1, 49).round_cents(), CU!(1));
+        assert_eq!(CU!(1, 50).round_cents(), CU!(2));
     }
 }
