@@ -9,17 +9,18 @@ use crate::transaction::Transaction;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
-pub type AnyPlayer = Box<dyn PlayerBehavior>;
+pub type AnyAccount = Box<dyn PlayerBehavior>;
 
 pub struct World {
-    players: Vec<AnyPlayer>,
+    players: Vec<AnyAccount>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
+    games_played: u64,
 }
 
 #[derive(Debug, Default)]
 pub struct WorldBuilder {
-    pub players: Vec<AnyPlayer>,
+    pub players: Vec<AnyAccount>,
 }
 
 impl WorldBuilder {
@@ -27,17 +28,18 @@ impl WorldBuilder {
         Self::default()
     }
 
-    pub fn add_player(&mut self, player: AnyPlayer) -> Result<&mut Self> {
+    pub fn add_player(&mut self, player: AnyAccount) -> Result<&mut Self> {
         self.players.push(player);
 
         Ok(self)
     }
 
-    pub fn build(self) -> Result<World> {
+    pub fn build(mut self) -> Result<World> {
         let mut w = World {
-            game: Game::build(self.players.len()).unwrap(), // dummy
+            game: Game::build(self.players.len(), &mut self.players, 0).unwrap(), // dummy
             players: self.players,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
+            games_played: 0,
         };
         w.start_new_game()?;
         for player in &w.players {
@@ -53,7 +55,10 @@ impl World {
     }
 
     pub fn start_new_game(&mut self) -> Result<()> {
-        let game = Game::build(self.players.len())?;
+        self.games_played += 1;
+
+        let dealer_pos = self.games_played as PlayerID % self.players.len();
+        let game = Game::build(self.players.len(), &mut self.players, dealer_pos)?;
         self.game = game;
         let players_game = self.game.players();
         assert_eq!(self.players.len(), players_game.len());
@@ -73,12 +78,7 @@ impl World {
         let action = player.act(&self.game)?;
         let possible_transaction = action.map(|a| a.prepare_transaction());
         let res = match self.game.process_action(action) {
-            Ok(_) if action.is_none() => Ok(()),
-            Ok(_) => {
-                self.action_log
-                    .push((Some(pid), action.unwrap().to_string()));
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(e) => Err(e),
         };
         if let Some(Some(transaction)) = possible_transaction {
@@ -92,14 +92,22 @@ impl World {
             self.action_log
                 .push((None, self.game.winner().unwrap().to_string()));
         }
+        self.update_action_log();
         res
+    }
+
+    fn update_action_log(&mut self) {
+        let glog = self.game.take_gamelog();
+        for i in glog.into_iter() {
+            self.action_log.push(i);
+        }
     }
 
     pub fn action_log(&self) -> &CircularQueue<(Option<PlayerID>, String)> {
         &self.action_log
     }
 
-    pub fn players(&self) -> &[AnyPlayer] {
+    pub fn players(&self) -> &[AnyAccount] {
         &self.players
     }
 }

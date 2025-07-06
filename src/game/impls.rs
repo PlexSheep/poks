@@ -72,10 +72,13 @@ impl Display for Winner {
             f,
             "{}",
             match self {
-                Self::KnownCards(pid, eval, cards) => {
-                    format!("Player {pid} won with {eval} ({}).", show_cards(cards))
+                Self::KnownCards(pot, pid, eval, cards) => {
+                    format!(
+                        "Player {pid} won {pot} with {eval}:\n{}.",
+                        show_cards(cards)
+                    )
                 }
-                Self::UnknownCards(pid) => format!("Player {pid} won."),
+                Self::UnknownCards(pot, pid) => format!("Player {pid} won {pot}."),
             }
         )
     }

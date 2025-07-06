@@ -15,6 +15,7 @@ mod impls; // additional trait impls
 
 pub type PlayerID = usize;
 pub type Cards<const N: usize> = [Card; N];
+pub type GlogItem = (Option<PlayerID>, String);
 
 pub static EVALUATOR: OnceLock<Evaluator> = OnceLock::new();
 
@@ -34,8 +35,8 @@ pub enum Phase {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Winner {
-    UnknownCards(PlayerID),
-    KnownCards(PlayerID, Eval<FiveCard>, Cards<7>),
+    UnknownCards(Currency, PlayerID),
+    KnownCards(Currency, PlayerID, Eval<FiveCard>, Cards<7>),
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,6 +59,7 @@ pub struct Game {
     state: GameState,
     small_blind: Currency,
     big_blind: Currency,
+    game_log: Vec<GlogItem>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -82,6 +84,15 @@ pub enum GameState {
 macro_rules! current_player {
     ($self:tt) => {
         $self.players[$self.turn]
+    };
+}
+
+macro_rules! glog {
+    ($self:tt, $player:expr ,$($content:tt)+) => {
+        $self.game_log.push((Some($player), format!($($content)+)))
+    };
+    ($self:tt, None ,$($content:tt)+) => {
+        $self.game_log.push((None, format!($($content)+)))
     };
 }
 
@@ -113,6 +124,7 @@ impl Game {
             small_blind: CU!(0, 50),
             big_blind: CU!(1),
             dealer: dealer_pos,
+            game_log: Vec::with_capacity(32),
         };
 
         game.post_blinds(accounts)?;
@@ -222,7 +234,7 @@ impl Game {
         }
 
         evals.sort_by(|a, b| b.1.cmp(&a.1));
-        let winner = Winner::KnownCards(evals[0].0, evals[0].1, evals[0].2);
+        let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
 
         Ok(winner)
@@ -246,7 +258,7 @@ impl Game {
                 .map(|(id, _)| id)
                 .ok_or_else(|| err_int!("No playing players found"))?;
 
-            self.set_winner(Winner::UnknownCards(winner_id));
+            self.set_winner(Winner::UnknownCards(self.pot(), winner_id));
             return Ok(());
         }
 
@@ -311,6 +323,9 @@ impl Game {
         }
 
         self.next_turn();
+
+        self.game_log.push((Some(self.turn), action.to_string()));
+
         Ok(())
     }
 
@@ -381,11 +396,23 @@ impl Game {
 
         *accounts[sb_pos].currency_mut() -= self.small_blind;
         self.players[sb_pos].round_bet += self.small_blind;
+        glog!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
 
         *accounts[bb_pos].currency_mut() -= self.big_blind;
         self.players[bb_pos].round_bet += self.big_blind;
+        glog!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
         Ok(())
+    }
+
+    pub fn gamelog(&self) -> &[GlogItem] {
+        &self.game_log
+    }
+
+    pub fn take_gamelog(&mut self) -> Vec<GlogItem> {
+        let a = self.game_log.clone();
+        self.game_log = Vec::with_capacity(32);
+        a
     }
 }
 
@@ -453,9 +480,7 @@ impl Winner {
         info!("Payout!");
         let old = *player.currency();
         let winnings = game.pot();
-        if winnings == CU!(0) {
-            warn!("Winnings are zero this round!")
-        }
+        assert_ne!(winnings, CU!(0));
         *player.currency_mut() += game.pot();
         assert_eq!(old + winnings, *player.currency());
         debug!("After Payout? {}", player.currency());
@@ -464,8 +489,8 @@ impl Winner {
 
     pub fn pid(&self) -> PlayerID {
         match self {
-            Winner::UnknownCards(pid) => *pid,
-            Winner::KnownCards(pid, ..) => *pid,
+            Winner::UnknownCards(_, pid) => *pid,
+            Winner::KnownCards(_, pid, ..) => *pid,
         }
     }
 }
