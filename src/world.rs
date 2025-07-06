@@ -74,7 +74,7 @@ impl World {
                 self.game.turn()
             );
         }
-        match self.game.process_action(action) {
+        let res = match self.game.process_action(action) {
             Ok(_) if action.is_none() => Ok(()),
             Ok(_) => {
                 self.action_log
@@ -82,7 +82,12 @@ impl World {
                 Ok(())
             }
             Err(e) => Err(e),
+        };
+        if self.game.is_finished() {
+            self.action_log
+                .push((None, self.game.winner().unwrap().to_string()));
         }
+        res
     }
 
     pub fn action_log(&self) -> &CircularQueue<(Option<PlayerID>, String)> {

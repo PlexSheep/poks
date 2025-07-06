@@ -10,7 +10,7 @@ use poks::{
 };
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 use tracing::info;
 
@@ -59,10 +59,11 @@ impl PoksTUI {
 
     pub fn update(&mut self) -> Result<()> {
         self.frame += 1;
-        self.world.tick_game()?;
-        if self.gamestate() == GameState::Finished {
+        if self.world().game.is_finished() {
             let winner = self.world.game.winner().expect("no winner despite win");
             self.message = Some("Game finished. Press F6 for a new game.".to_string());
+        } else {
+            self.world.tick_game()?;
         }
 
         Ok(())
@@ -80,7 +81,7 @@ impl PoksTUI {
                     info!("should exit");
                     self.should_exit = true
                 }
-                KeyCode::F(6) => self.start_new_game(),
+                KeyCode::F(6) if self.world().game.is_finished() => self.start_new_game(),
                 KeyCode::F(1) => PlayerLocal::set_action(&self.player_af, Action::Fold),
                 KeyCode::F(2) => PlayerLocal::set_action(&self.player_af, Action::Check),
                 KeyCode::F(3) => PlayerLocal::set_action(&self.player_af, Action::Raise(CU!(10))),
@@ -133,7 +134,7 @@ impl PoksTUI {
     }
 
     fn controls(&self) -> String {
-        "F1: Fold, F2: Check, F3: Raise, F4: All in".to_string()
+        "F1: Fold, F2: Check/Call, F3: Raise, F4: All in".to_string()
     }
 
     fn world(&self) -> &World {
@@ -142,7 +143,9 @@ impl PoksTUI {
 
     fn start_new_game(&mut self) {
         self.message = None;
-        self.world.start_new_game();
+        self.world
+            .start_new_game()
+            .expect("could not start new game");
     }
 
     fn gamedata(&self) -> String {
@@ -202,7 +205,13 @@ impl PoksTUI {
             .split(layout[3]);
 
         frame.render_widget(
-            line_widget(self.render_action_log(), Borders::ALL, false),
+            {
+                let text = self.render_action_log();
+                let borders = Borders::ALL;
+                Paragraph::new(text.to_string())
+                    .block(Block::new().borders(borders))
+                    .wrap(Wrap { trim: false })
+            },
             panels[3],
         );
         frame.render_widget(
