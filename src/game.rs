@@ -44,12 +44,13 @@ pub struct Player {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Game {
-    pub phase: Phase,
-    pub turn: PlayerID,
-    pub players: Vec<Player>,
-    pub community_cards: CardsDynamic,
+    phase: Phase,
+    turn: PlayerID,
+    players: Vec<Player>,
+    community_cards: CardsDynamic,
     winner: Option<Winner>,
     deck: CardsDynamic,
+    state: GameState,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -61,9 +62,10 @@ pub enum Action {
     AllIn,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[non_exhaustive]
 pub enum GameState {
+    #[default]
     Ongoing,
     Pause,
     Finished,
@@ -89,6 +91,7 @@ impl Game {
             community_cards: CardsDynamic::new(),
             winner: None,
             deck,
+            state: GameState::default(),
         })
     }
 
@@ -195,6 +198,7 @@ impl Game {
     }
 
     pub fn process_action(&self, action: Action) -> Result<GameState> {
+        self.state = todo!();
         todo!()
     }
 
@@ -211,6 +215,26 @@ impl Game {
         }
 
         buf
+    }
+
+    pub fn turn(&self) -> PlayerID {
+        self.turn
+    }
+
+    pub fn players(&self) -> &[Player] {
+        &self.players
+    }
+
+    pub fn community_cards(&self) -> &CardsDynamic {
+        &self.community_cards
+    }
+
+    pub fn deck(&self) -> &CardsDynamic {
+        &self.deck
+    }
+
+    pub fn state(&self) -> GameState {
+        self.state
     }
 }
 
