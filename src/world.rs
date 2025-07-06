@@ -55,25 +55,29 @@ impl World {
         Ok(())
     }
 
-    pub fn tick_game(&mut self) -> Result<GameState> {
+    pub fn tick_game(&mut self) -> Result<()> {
         if self.game.is_finished() {
-            return Ok(GameState::Finished);
+            todo!("Game is finished, add error")
         }
-        debug_assert!(self.game.turn < self.players.len());
-        let player_action = self.players[self.game.turn].act(&self.game)?;
+        debug_assert!(self.game.turn() < self.players.len());
+        let player_action = self.players[self.game.turn()].act(&self.game)?;
         if let Some(action) = player_action {
             self.game.process_action(action)
         } else {
             warn!(
                 "Player {} has not made an action, waiting for them...",
-                self.game.turn
+                self.game.turn()
             );
-            Ok(GameState::Ongoing)
+            Ok(())
         }
     }
 
     pub fn action_log(&self) -> &CircularQueue<(Option<PlayerID>, String)> {
         &self.action_log
+    }
+
+    pub fn players(&self) -> &[Box<dyn PlayerBehavior>] {
+        &self.players
     }
 }
 

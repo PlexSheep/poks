@@ -197,7 +197,7 @@ impl Game {
         Ok(winner)
     }
 
-    pub fn process_action(&self, action: Action) -> Result<GameState> {
+    pub fn process_action(&self, action: Action) -> Result<()> {
         self.state = todo!();
         todo!()
     }
