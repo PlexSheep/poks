@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::Display,
     ops::{Deref, DerefMut},
 };
 
@@ -113,8 +113,6 @@ impl From<&[Card]> for CardsDynamic {
 
 impl From<Vec<Card>> for CardsDynamic {
     fn from(value: Vec<Card>) -> Self {
-        Self {
-            inner: value.into(),
-        }
+        Self { inner: value }
     }
 }

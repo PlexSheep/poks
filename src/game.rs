@@ -3,10 +3,10 @@ use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
 
-use crate::currency::{self, Currency};
+use crate::currency::Currency;
 use crate::player::{PlayerBehavior, PlayerState};
 use crate::transaction::Transaction;
-use crate::{CU, Result, player_impl};
+use crate::{CU, Result};
 
 mod impls; // additional trait impls
 
@@ -388,5 +388,5 @@ pub fn show_cards(cards: &[Card]) -> String {
 
 #[inline]
 pub fn evaluator() -> &'static Evaluator {
-    EVALUATOR.get_or_init(|| Evaluator::new())
+    EVALUATOR.get_or_init(Evaluator::new)
 }

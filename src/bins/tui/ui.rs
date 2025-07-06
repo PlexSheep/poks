@@ -4,7 +4,7 @@ use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
     CU,
-    game::{Action, GameState, PlayerID, show_cards},
+    game::{Action, GameState, PlayerID},
     player::PlayerCPU,
     world::World,
 };
