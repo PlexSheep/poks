@@ -3,7 +3,8 @@ use std::fmt::Display;
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
-    game::{GameState, PlayerID},
+    CU,
+    game::{Action, GameState, PlayerID, show_cards},
     player::PlayerCPU,
     world::World,
 };
@@ -80,10 +81,10 @@ impl PoksTUI {
                     self.should_exit = true
                 }
                 KeyCode::F(6) => self.start_new_game(),
-                KeyCode::F(1) => PlayerLocal::set_action(self.player_af, Action::Fold),
-                KeyCode::F(2) => PlayerLocal::set_action(self.player_af, Action::Check),
-                KeyCode::F(3) => PlayerLocal::set_action(self.player_af, Action::Raise(10)),
-                KeyCode::F(4) => PlayerLocal::set_action(self.player_af, Action::Raise(50)),
+                KeyCode::F(1) => PlayerLocal::set_action(&self.player_af, Action::Fold),
+                KeyCode::F(2) => PlayerLocal::set_action(&self.player_af, Action::Check),
+                KeyCode::F(3) => PlayerLocal::set_action(&self.player_af, Action::Raise(CU!(10))),
+                KeyCode::F(4) => PlayerLocal::set_action(&self.player_af, Action::Raise(CU!(50))),
                 _ => (),
             },
             _ => (),
@@ -160,7 +161,7 @@ impl PoksTUI {
         let world = self.world();
         debug_assert!(!world.players().is_empty());
 
-        let you = &world().players[self.player_id];
+        let you = &world.game.players()[world.game.turn()];
 
         let panels = Layout::default()
             .direction(Direction::Horizontal)
@@ -205,11 +206,11 @@ impl PoksTUI {
             panels[3],
         );
         frame.render_widget(
-            line_widget(world.show_table(), Borders::ALL, true),
+            line_widget(world.game.show_table(), Borders::ALL, true),
             layout_table[1],
         );
         frame.render_widget(
-            line_widget(show_hand(*you.hand()), Borders::NONE, true),
+            line_widget(you.show_hand(), Borders::NONE, true),
             layout_phand[1],
         );
     }
