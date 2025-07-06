@@ -253,6 +253,22 @@ impl Player {
             hand,
         }
     }
+
+    pub fn hand(&self) -> [Card; 2] {
+        self.hand
+    }
+
+    pub fn state(&self) -> PlayerState {
+        self.state
+    }
+
+    pub fn total_bet(&self) -> Currency {
+        self.total_bet
+    }
+
+    pub fn round_bet(&self) -> Currency {
+        self.round_bet
+    }
 }
 
 pub fn show_cards(cards: &[Card]) -> String {

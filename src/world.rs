@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use tracing::warn;
 
 use crate::Result;
-use crate::game::{Game, GameState, PlayerID};
+use crate::game::{Game, PlayerID};
 use crate::player::PlayerBehavior;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
@@ -52,6 +52,11 @@ impl World {
     pub fn start_new_game(&mut self) -> Result<()> {
         let game = Game::build(self.players.len())?;
         self.game = game;
+        let players_game = self.game.players();
+        assert_eq!(self.players.len(), players_game.len());
+        for (gp, wp) in self.players.iter_mut().zip(players_game.iter()) {
+            gp.set_hand(wp.hand());
+        }
         Ok(())
     }
 
