@@ -1,3 +1,4 @@
+pub mod currency;
 pub mod game;
 pub mod player;
 
