@@ -1,6 +1,5 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
-use tracing::{trace, warn};
 
 use crate::Result;
 use crate::errors::PoksError;

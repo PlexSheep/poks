@@ -130,7 +130,7 @@ impl PoksError {
     pub fn player_not_playing(player_id: PlayerID, current_state: PlayerState) -> Self {
         Self::PlayerNotPlaying {
             player_id,
-            current_state: current_state,
+            current_state,
         }
     }
 
@@ -170,7 +170,7 @@ where
     }
 
     fn with_player_context(self, player_id: PlayerID) -> Result<T> {
-        self.map_err(|_| PoksError::internal(format!("Error with player {}", player_id)))
+        self.map_err(|_| PoksError::internal(format!("Error with player {player_id}")))
     }
 }
 
