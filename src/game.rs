@@ -49,7 +49,7 @@ pub struct Game {
     pub players: Vec<Player>,
     pub community_cards: CardsDynamic,
     winner: Option<Winner>,
-    deck: Vec<Card>,
+    deck: CardsDynamic,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,8 +71,8 @@ pub enum GameState {
 
 impl Game {
     pub fn build(player_amount: usize) -> Result<Self> {
-        assert!(player_amount > 0);
-        let mut deck = poker::deck::shuffled();
+        assert!(player_amount >= 2);
+        let mut deck: CardsDynamic = poker::deck::shuffled().into();
         if player_amount > deck.len() / 2 {
             // TODO: return a proper error and result
             panic!("Not enough cards in a deck for this many players!")
@@ -130,33 +130,38 @@ impl Game {
         self.winner
     }
 
-    pub fn add_table_card(&mut self, card: Card) {
-        self.community_cards.push(card);
+    fn draw_card(&mut self) -> Card {
+        self.deck.pop().unwrap()
     }
 
-    pub fn advance_phase<F: FnOnce() -> Card>(&mut self, draw_card: F) {
+    #[inline]
+    fn add_table_card(&mut self) {
+        let c = self.draw_card();
+        self.community_cards.push(c);
+    }
+
+    pub fn advance_phase(&mut self) {
         match self.phase() {
             Phase::Preflop => {
-                let _ = draw_card(); // burn card
+                let _ = self.draw_card(); // burn card
                 for _ in 0..3 {
-                    self.add_table_card(draw_card());
+                    self.add_table_card();
                 }
                 assert_eq!(self.community_cards.len(), 3);
                 self.set_phase(Phase::Flop);
             }
             Phase::Flop => {
-                let _ = draw_card(); // burn card
-                self.add_table_card(draw_card());
+                let _ = self.draw_card(); // burn card
+                self.add_table_card();
                 assert_eq!(self.community_cards.len(), 4);
                 self.set_phase(Phase::Turn);
             }
             Phase::Turn => {
-                let _ = draw_card(); // burn card
-                self.add_table_card(draw_card());
+                let _ = self.draw_card(); // burn card
+                self.add_table_card();
                 assert_eq!(self.community_cards.len(), 5);
                 self.set_phase(Phase::River);
-                let w = self.showdown()?;
-                self.action_log.push((None, Action::Winner(w)));
+                let w = self.showdown();
             }
             Phase::River => unreachable!(),
         }
