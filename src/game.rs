@@ -153,7 +153,7 @@ impl Game {
         self.community_cards.push(c);
     }
 
-    pub fn advance_phase(&mut self) {
+    fn advance_phase(&mut self) {
         match self.phase() {
             Phase::Preflop => {
                 let _ = self.draw_card(); // burn card
@@ -180,7 +180,7 @@ impl Game {
         }
     }
 
-    pub fn showdown(&mut self) -> Result<Winner> {
+    fn showdown(&mut self) -> Result<Winner> {
         let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
         for (pid, player) in self.players.iter().enumerate() {
             if player.state != PlayerState::Playing {
@@ -207,6 +207,13 @@ impl Game {
         Ok(winner)
     }
 
+    fn next_turn(&mut self) {
+        self.turn = (self.turn + 1) % self.players.len();
+        if self.turn == 0 {
+            self.advance_phase();
+        }
+    }
+
     pub fn process_action(&mut self, action: Action) -> Result<()> {
         if !current_player!(self).state.is_playing() {
             todo!("Error: player not playing and cant make action")
@@ -221,6 +228,7 @@ impl Game {
         let player = &mut current_player!(self);
 
         if player.state == PlayerState::AllIn {
+            self.next_turn();
             return Ok(());
         }
         match action {
@@ -238,7 +246,7 @@ impl Game {
                 player.round_bet += currency;
             }
             Action::Check => {
-                if round_bet == CU!(0) {
+                if round_bet - player.round_bet != CU!(0) {
                     todo!("Error: action not allowed: total bet less than highest bet")
                 }
             }
@@ -260,6 +268,7 @@ impl Game {
             }
         }
 
+        self.next_turn();
         Ok(())
     }
 
