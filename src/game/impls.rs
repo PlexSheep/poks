@@ -12,8 +12,6 @@ use crate::{
     len_to_const_arr,
 };
 
-struct Shortened;
-
 impl CardsDynamic {
     pub const fn new() -> Self {
         Self { inner: Vec::new() }
@@ -24,12 +22,6 @@ impl CardsDynamic {
             return None;
         }
         len_to_const_arr(&self.inner).ok()
-    }
-}
-
-impl Debug for Shortened {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(..)")
     }
 }
 
