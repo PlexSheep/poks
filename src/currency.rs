@@ -21,12 +21,12 @@ macro_rules! CU {
 }
 
 impl Currency {
-    const SIGN: char = 'ŧ';
-    const DECIMAL_SEPARATOR: char = ',';
-    const VISUAL_SEPARATOR: char = '.';
-    const ONE_CT: Currency = Currency(1);
-    const ONE: Currency = Currency(100);
-    const ZERO: Currency = Currency(0);
+    pub const CURRENCY_SYMBOL: char = 'ŧ';
+    pub const DECIMAL_SEPARATOR: char = ',';
+    pub const THOUSANDS_SEPARATOR: char = '.';
+    pub const ONE_CT: Currency = Currency(1);
+    pub const ONE: Currency = Currency(100);
+    pub const ZERO: Currency = Currency(0);
 
     pub fn new(credits: u64, cents: u64) -> Self {
         Self(credits * 100 + cents)
@@ -86,21 +86,35 @@ impl From<u64> for Currency {
 
 impl Display for Currency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = String::new();
-        let credits_s = self.credits().to_string();
-        let mut it = credits_s.chars().into_iter().rev().enumerate().peekable();
-        for (index, decimal) in it.clone() {
-            buf.push(decimal);
-            if index % 2 == 0 && it.peek().is_some() {
-                buf.push(Self::VISUAL_SEPARATOR);
-            }
-        }
-        let mut buf: String = buf.chars().into_iter().rev().collect();
-        buf.push(Self::DECIMAL_SEPARATOR);
-        buf.push_str(&self.cents().to_string());
-        buf.push(Self::SIGN);
+        let creds = self.credits();
+        let cents = self.cents();
 
-        write!(f, "{buf}")
+        // Format main units with thousands separators
+        let main_str = if creds == 0 {
+            "0".to_string()
+        } else {
+            let mut result = String::new();
+            let main_str = creds.to_string();
+
+            for (i, ch) in main_str.chars().rev().enumerate() {
+                if i > 0 && i % 3 == 0 {
+                    result.push(Self::THOUSANDS_SEPARATOR);
+                }
+                result.push(ch);
+            }
+
+            result.chars().rev().collect()
+        };
+
+        // Combine everything
+        write!(
+            f,
+            "{}{}{:02}{}",
+            main_str,
+            Self::DECIMAL_SEPARATOR,
+            cents,
+            Self::CURRENCY_SYMBOL
+        )
     }
 }
 
@@ -111,6 +125,7 @@ impl Add for Currency {
         Self(self.0 + rhs.0)
     }
 }
+
 impl Sub for Currency {
     type Output = Self;
 
@@ -118,6 +133,7 @@ impl Sub for Currency {
         Self(self.0 - rhs.0)
     }
 }
+
 impl Mul for Currency {
     type Output = Self;
 
@@ -198,10 +214,11 @@ mod test {
 
     #[test]
     fn test_currency_display() {
-        assert_eq!(Currency(10000000000).to_string(), "10.000.000,00ŧ");
-        assert_eq!(Currency(1000000000).to_string(), "1.000.000,00ŧ");
-        assert_eq!(Currency(100000000).to_string(), "100.000,00ŧ");
-        assert_eq!(Currency(10000000).to_string(), "10.000,00ŧ");
+        assert_eq!(Currency(100000000000).to_string(), "1.000.000.000,00ŧ");
+        assert_eq!(Currency(10000000000).to_string(), "100.000.000,00ŧ");
+        assert_eq!(Currency(1000000000).to_string(), "10.000.000,00ŧ");
+        assert_eq!(Currency(100000000).to_string(), "1.000.000,00ŧ");
+        assert_eq!(Currency(10000000).to_string(), "100.000,00ŧ");
         assert_eq!(Currency(1000000).to_string(), "10.000,00ŧ");
         assert_eq!(Currency(100000).to_string(), "1.000,00ŧ");
         assert_eq!(Currency(10000).to_string(), "100,00ŧ");
