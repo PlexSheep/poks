@@ -214,18 +214,28 @@ impl Game {
         }
     }
 
-    pub fn process_action(&mut self, action: Action) -> Result<()> {
-        if !current_player!(self).state.is_playing() {
-            todo!("Error: player not playing and cant make action")
-        }
-
+    pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
         let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
         if remaining_players == 1 {
             todo!("Player is the last remaining one, let them win without showing cards")
         }
 
         let round_bet = self.highest_bet_of_round();
+        let player = &current_player!(self);
+
+        if !player.state.is_playing() {
+            self.next_turn();
+        }
+
+        let action = match action {
+            Some(a) => a,
+            None => return Ok(()), // come back with an action
+        };
+
         let player = &mut current_player!(self);
+        if !player.state.is_playing() {
+            todo!("Error: player not playing and cant make action")
+        }
 
         if player.state == PlayerState::AllIn {
             self.next_turn();

@@ -67,21 +67,21 @@ impl World {
         debug_assert!(self.game.turn() < self.players.len());
         let pid = self.game.turn();
         let player = &mut self.players[pid];
-        let player_action = player.act(&self.game)?;
-        if let Some(action) = player_action {
-            match self.game.process_action(action) {
-                Ok(_) => {
-                    self.action_log.push((Some(pid), action.to_string()));
-                    Ok(())
-                }
-                Err(e) => return Err(e),
-            }
-        } else {
+        let action = player.act(&self.game)?;
+        if action.is_none() {
             warn!(
                 "Player {} has not made an action, waiting for them...",
                 self.game.turn()
             );
-            Ok(())
+        }
+        match self.game.process_action(action) {
+            Ok(_) if action.is_none() => Ok(()),
+            Ok(_) => {
+                self.action_log
+                    .push((Some(pid), action.unwrap().to_string()));
+                Ok(())
+            }
+            Err(e) => Err(e),
         }
     }
 
