@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 use crate::Result;
 use crate::currency::Currency;
 
+static mut GARBAGE: Currency = Currency::new(0, 0);
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[must_use]
 pub struct Transaction {
@@ -22,16 +24,12 @@ impl Transaction {
         Ok(())
     }
 
-    #[allow(invalid_reference_casting)]
+    #[allow(static_mut_refs)]
     /// # Safety
     ///
     /// Reading from this reference is undefined behavior
     pub fn garbage() -> &'static mut Currency {
-        static VOID: Currency = Currency::new(0, 0);
-        let r = &VOID;
-        let p = r as *const Currency;
-        let pm = p as *mut Currency;
-        unsafe { &mut *pm }
+        unsafe { &mut GARBAGE }
     }
 }
 

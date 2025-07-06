@@ -39,6 +39,10 @@ impl PoksTUI {
                 .expect("could not add cpu player");
         }
 
+        for player in worldb.players.iter_mut() {
+            player.set_currency(CU!(5000));
+        }
+
         Self {
             world: worldb.build().expect("could not prepare world"),
             should_exit: false,

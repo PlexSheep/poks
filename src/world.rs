@@ -19,7 +19,7 @@ pub struct World {
 
 #[derive(Debug, Default)]
 pub struct WorldBuilder {
-    players: Vec<AnyPlayer>,
+    pub players: Vec<AnyPlayer>,
 }
 
 impl WorldBuilder {
