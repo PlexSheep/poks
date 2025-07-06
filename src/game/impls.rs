@@ -44,8 +44,8 @@ impl Display for Action {
             "{}",
             match self {
                 Action::Fold => "folds".to_string(),
+                Action::Call(bet) if *bet == CU!(0) => "checks".to_string(),
                 Action::Call(bet) => format!("calls for {bet}"),
-                Action::Check => "checks".to_string(),
                 Action::Raise(bet) => format!("raises by {bet}"),
                 Action::AllIn(bet) => format!("goes all in! ({bet})"),
             }
@@ -58,7 +58,7 @@ impl Distribution<Action> for StandardUniform {
         let disc: u8 = rng.random_range(0..=70);
         match disc {
             0 => Action::Fold,
-            1..70 => Action::Check,
+            1..70 => Action::check(),
             70..100 => Action::Raise(CU!(10)),
             100 => Action::Raise(CU!(100)),
             _ => unreachable!(),

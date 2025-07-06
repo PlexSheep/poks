@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::Result;
 use crate::currency::Currency;
+use crate::{CU, Result};
 
 static mut GARBAGE: Currency = Currency::new(0, 0);
 
@@ -19,6 +19,9 @@ impl Transaction {
         self.amount
     }
     pub fn finish(self, sender: &mut Currency, receiver: &mut Currency) -> Result<()> {
+        if self.amount == CU!(0) {
+            return Ok(());
+        }
         *sender -= self.amount;
         *receiver += self.amount;
         Ok(())

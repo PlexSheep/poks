@@ -58,7 +58,6 @@ pub struct Game {
 pub enum Action {
     Fold,
     Call(Currency),
-    Check,
     Raise(Currency),
     AllIn(Currency),
 }
@@ -233,49 +232,45 @@ impl Game {
             None => return Ok(()), // come back with an action
         };
 
-        let player = &mut current_player!(self);
-        if !player.state.is_playing() {
+        if !current_player!(self).state.is_playing() {
             todo!("Error: player not playing and cant make action")
         }
 
-        if player.state == PlayerState::AllIn {
+        if current_player!(self).state == PlayerState::AllIn {
             self.next_turn();
             return Ok(());
         }
         match action {
             Action::Fold => {
-                player.state = PlayerState::Folded;
+                current_player!(self).state = PlayerState::Folded;
             }
             Action::Call(currency) => {
-                if round_bet <= player.round_bet {
+                if round_bet <= current_player!(self).round_bet {
                     todo!("Cannot call when you are not under the round bet")
                 }
-                let diff = round_bet - player.round_bet;
+                let diff = round_bet - current_player!(self).round_bet;
                 if diff != currency {
                     todo!("Error: currency call mismatch ({diff} != {currency})")
                 }
-                player.round_bet += currency;
-            }
-            Action::Check => {
-                if round_bet - player.round_bet != CU!(0) {
-                    todo!("Error: action not allowed: total bet less than highest bet")
+                if currency != CU!(0) {
+                    current_player!(self).round_bet += currency;
                 }
             }
             Action::Raise(currency) => {
-                if self.state != GameState::RaiseDisallowed {
+                if self.state == GameState::RaiseDisallowed {
                     todo!("No betting allowed, just calling")
                 }
-                player.round_bet += currency;
+                current_player!(self).round_bet += currency;
             }
             Action::AllIn(currency) => {
-                if player.state == PlayerState::AllIn {
+                if current_player!(self).state == PlayerState::AllIn {
                     todo!("Error: player is already all in")
                 }
                 if self.state != GameState::RaiseDisallowed {
                     todo!("No betting allowed, just calling")
                 }
-                player.state = PlayerState::AllIn;
-                player.round_bet += currency;
+                current_player!(self).state = PlayerState::AllIn;
+                current_player!(self).round_bet += currency;
             }
         }
 
@@ -316,6 +311,11 @@ impl Game {
 
     pub fn state(&self) -> GameState {
         self.state
+    }
+
+    pub fn action_check(&self) -> Action {
+        let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
+        Action::Call(diff)
     }
 }
 
@@ -369,8 +369,12 @@ impl Action {
             Action::Call(currency) | Action::Raise(currency) | Action::AllIn(currency) => {
                 Some(Transaction::new(*currency))
             }
-            Action::Fold | Action::Check => None,
+            Action::Fold => None,
         }
+    }
+    #[inline]
+    pub fn check() -> Self {
+        Self::Call(CU!(0))
     }
 }
 

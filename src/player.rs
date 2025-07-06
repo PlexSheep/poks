@@ -70,12 +70,12 @@ macro_rules! player_impl {
 player_impl!(
     PlayerCPU,
     base,
-    fn act(&mut self, _game: &Game) -> Result<Option<Action>> {
+    fn act(&mut self, game: &Game) -> Result<Option<Action>> {
         let mut a = rand::random();
         a = match a {
             Action::Raise(bet) => {
                 if self.base.currency < bet {
-                    Action::Check
+                    game.action_check()
                 } else {
                     a
                 }
