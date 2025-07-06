@@ -10,6 +10,16 @@ use std::{
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Currency(u64);
 
+#[macro_export]
+macro_rules! CU {
+    ($cr:tt) => {
+        $crate::currency::Currency::new($cr, 0)
+    };
+    ($cr:tt,$ct:tt) => {
+        $crate::currency::Currency::new($cr, $ct)
+    };
+}
+
 impl Currency {
     const SIGN: char = 'ŧ';
     const DECIMAL_SEPARATOR: char = ',';

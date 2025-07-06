@@ -7,6 +7,7 @@ use poker::Card;
 use rand::{distr::StandardUniform, prelude::Distribution};
 
 use crate::{
+    CU,
     game::{Action, Cards, CardsDynamic, Phase, PlayerState, Winner, show_cards},
     len_to_const_arr,
 };
@@ -66,8 +67,8 @@ impl Distribution<Action> for StandardUniform {
         match disc {
             0 => Action::Fold,
             1..70 => Action::Check,
-            70..100 => Action::Raise(10),
-            100 => Action::Raise(100),
+            70..100 => Action::Raise(CU!(10)),
+            100 => Action::Raise(CU!(100)),
             _ => unreachable!(),
         }
     }
@@ -107,5 +108,21 @@ impl Deref for CardsDynamic {
 impl DerefMut for CardsDynamic {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl From<&[Card]> for CardsDynamic {
+    fn from(value: &[Card]) -> Self {
+        Self {
+            inner: value.into(),
+        }
+    }
+}
+
+impl From<Vec<Card>> for CardsDynamic {
+    fn from(value: Vec<Card>) -> Self {
+        Self {
+            inner: value.into(),
+        }
     }
 }
