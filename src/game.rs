@@ -6,9 +6,9 @@ use tracing::{debug, info, warn};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
-use crate::player::{PlayerBehavior, PlayerState};
+use crate::player::PlayerState;
 use crate::transaction::Transaction;
-use crate::world::AnyPlayer;
+use crate::world::AnyAccount;
 use crate::{CU, Result, err_int};
 
 mod impls; // additional trait impls
@@ -50,11 +50,14 @@ pub struct Player {
 pub struct Game {
     phase: Phase,
     turn: PlayerID,
+    dealer: PlayerID,
     players: Vec<Player>,
     community_cards: CardsDynamic,
     winner: Option<Winner>,
     deck: CardsDynamic,
     state: GameState,
+    small_blind: Currency,
+    big_blind: Currency,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -83,7 +86,11 @@ macro_rules! current_player {
 }
 
 impl Game {
-    pub fn build(player_amount: usize) -> Result<Self> {
+    pub fn build(
+        player_amount: usize,
+        accounts: &mut Vec<AnyAccount>,
+        dealer_pos: PlayerID,
+    ) -> Result<Self> {
         assert!(player_amount >= 2);
         let mut deck: CardsDynamic = poker::deck::shuffled().into();
         if player_amount > deck.len() / 2 {
@@ -95,7 +102,7 @@ impl Game {
             let hand: Cards<2> = [deck.pop().unwrap(), deck.pop().unwrap()];
             players.push(Player::new(hand));
         }
-        Ok(Game {
+        let mut game = Game {
             turn: 0,
             phase: Phase::default(),
             players,
@@ -103,7 +110,14 @@ impl Game {
             winner: None,
             deck,
             state: GameState::default(),
-        })
+            small_blind: CU!(0, 50),
+            big_blind: CU!(1),
+            dealer: dealer_pos,
+        };
+
+        game.post_blinds(accounts)?;
+
+        Ok(game)
     }
 
     #[must_use]
@@ -340,6 +354,39 @@ impl Game {
         debug!("Building call action with {diff}");
         Action::Call(diff)
     }
+
+    pub fn small_blind_position(&self) -> PlayerID {
+        if self.players.len() == 2 {
+            // In heads-up, dealer posts small blind
+            self.dealer
+        } else {
+            (self.dealer + 1) % self.players.len()
+        }
+    }
+
+    pub fn big_blind_position(&self) -> PlayerID {
+        if self.players.len() == 2 {
+            // In heads-up, non-dealer posts big blind
+            (self.dealer + 1) % self.players.len()
+        } else {
+            (self.dealer + 2) % self.players.len()
+        }
+    }
+
+    fn post_blinds(&mut self, accounts: &mut Vec<AnyAccount>) -> Result<()> {
+        let sb_pos = self.small_blind_position();
+        let bb_pos = self.big_blind_position();
+
+        assert_eq!(self.players.len(), accounts.len());
+
+        *accounts[sb_pos].currency_mut() -= self.small_blind;
+        self.players[sb_pos].round_bet += self.small_blind;
+
+        *accounts[bb_pos].currency_mut() -= self.big_blind;
+        self.players[bb_pos].round_bet += self.big_blind;
+
+        Ok(())
+    }
 }
 
 impl Player {
@@ -402,7 +449,7 @@ impl Action {
 }
 
 impl Winner {
-    pub fn payout(&self, game: &Game, player: &mut AnyPlayer) -> Result<()> {
+    pub fn payout(&self, game: &Game, player: &mut AnyAccount) -> Result<()> {
         info!("Payout!");
         let old = *player.currency();
         let winnings = game.pot();
