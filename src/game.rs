@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::OnceLock;
 
 use poker::{Card, Eval, Evaluator, FiveCard};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
