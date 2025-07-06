@@ -3,8 +3,9 @@ use std::fmt::Display;
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
-    game::{Action, GameState, World, show_hand},
-    player::{PlayerBehavior, PlayerLocal},
+    game::{GameState, PlayerID},
+    player::PlayerCPU,
+    world::World,
 };
 use ratatui::{
     prelude::*,
@@ -12,22 +13,38 @@ use ratatui::{
 };
 use tracing::info;
 
+use crate::player::local::{ActionAccessor, PlayerLocal};
+
 pub struct PoksTUI {
     world: World,
     should_exit: bool,
     frame: u32,
-    gamestate: GameState,
     message: Option<String>,
+    player_af: ActionAccessor,
+    player_id: PlayerID,
 }
 
 impl PoksTUI {
     pub fn new() -> Self {
+        let mut worldb = World::builder();
+
+        let player = Box::new(PlayerLocal::new());
+        let player_action_field = player.action_field_reference();
+        worldb.add_player(player).unwrap();
+
+        for _ in 1..4 {
+            worldb
+                .add_player(Box::new(PlayerCPU::default()))
+                .expect("could not add cpu player");
+        }
+
         Self {
-            world: World::new(4, poks::game::GameSetup::LocalAgainstCPU),
+            world: worldb.build().expect("could not prepare world"),
             should_exit: false,
             frame: 0,
-            gamestate: GameState::Pause,
             message: None,
+            player_af: player_action_field,
+            player_id: 0,
         }
     }
 
@@ -35,10 +52,14 @@ impl PoksTUI {
         self.should_exit
     }
 
+    fn gamestate(&self) -> GameState {
+        self.world.game.state()
+    }
+
     pub fn update(&mut self) -> Result<()> {
         self.frame += 1;
-        self.gamestate = self.world.tick_game()?;
-        if self.gamestate == GameState::Finished {
+        self.world.tick_game()?;
+        if self.gamestate() == GameState::Finished {
             let winner = self.world.game.winner().expect("no winner despite win");
             self.message = Some("Game finished. Press F6 for a new game.".to_string());
         }
@@ -59,10 +80,10 @@ impl PoksTUI {
                     self.should_exit = true
                 }
                 KeyCode::F(6) => self.start_new_game(),
-                KeyCode::F(1) => PlayerLocal::set_action(Action::Fold),
-                KeyCode::F(2) => PlayerLocal::set_action(Action::Check),
-                KeyCode::F(3) => PlayerLocal::set_action(Action::Raise(10)),
-                KeyCode::F(4) => PlayerLocal::set_action(Action::Raise(50)),
+                KeyCode::F(1) => PlayerLocal::set_action(self.player_af, Action::Fold),
+                KeyCode::F(2) => PlayerLocal::set_action(self.player_af, Action::Check),
+                KeyCode::F(3) => PlayerLocal::set_action(self.player_af, Action::Raise(10)),
+                KeyCode::F(4) => PlayerLocal::set_action(self.player_af, Action::Raise(50)),
                 _ => (),
             },
             _ => (),
@@ -128,18 +149,18 @@ impl PoksTUI {
         format!(
             "Phase: {} | Turn of Player: {} | You are Player: {} | Pot: {} | Currency: {}€",
             game.phase(),
-            game.turn,
+            game.turn(),
             0,
             game.pot(),
-            *self.world.players[0].currency()
+            self.world.players()[0].currency()
         )
     }
 
     fn render_world(&self, area: Rect, frame: &mut Frame<'_>) {
         let world = self.world();
-        debug_assert!(!world.players.is_empty());
+        debug_assert!(!world.players().is_empty());
 
-        let you = &world.players[0];
+        let you = &world().players[self.player_id];
 
         let panels = Layout::default()
             .direction(Direction::Horizontal)

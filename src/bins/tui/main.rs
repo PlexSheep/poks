@@ -8,6 +8,7 @@ use tracing_subscriber::{Registry, filter, fmt, prelude::*};
 
 use crate::ui::PoksTUI;
 
+mod player;
 mod ui;
 
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(1);
