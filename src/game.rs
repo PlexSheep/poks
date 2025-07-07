@@ -568,7 +568,7 @@ impl Winner {
 
 pub fn show_cards(cards: &[impl Display]) -> String {
     let mut buf = String::new();
-    for card in cards.into_iter() {
+    for card in cards.iter() {
         buf.push_str(&card.to_string());
     }
     buf
