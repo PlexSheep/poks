@@ -4,7 +4,8 @@ use tracing::trace;
 
 use crate::Result;
 use crate::errors::PoksError;
-use crate::game::{Game, PlayerID};
+use crate::game::Game;
+use crate::players::PlayerID;
 
 mod seat;
 pub use seat::*;

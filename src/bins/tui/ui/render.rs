@@ -1,4 +1,4 @@
-use poksen::game::evaluator;
+use poksen::game::evaluation::evaluator;
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph, Wrap},
