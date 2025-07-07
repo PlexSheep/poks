@@ -3,9 +3,9 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poksen::{
     CU,
     currency::Currency,
-    game::{Action, PlayerID},
+    game::Action,
     lobby::Lobby,
-    players::{PlayerCPU, PlayerLocal, local::ActionAccessor},
+    players::{PlayerCPU, PlayerID, PlayerLocal, local::ActionAccessor},
 };
 use tracing::{debug, info, trace};
 
