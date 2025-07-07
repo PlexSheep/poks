@@ -90,8 +90,6 @@ impl Lobby {
             let winner: Winner = self.game.winner().unwrap();
             let winning_player = &mut self.players[winner.pid()];
             winner.payout(&self.game, winning_player)?;
-            self.action_log
-                .push((None, self.game.winner().unwrap().to_string()));
         }
         self.update_action_log();
         res

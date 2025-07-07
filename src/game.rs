@@ -94,11 +94,20 @@ macro_rules! current_player {
 }
 
 macro_rules! glog {
+    ($self:tt, None, $stuff:expr) => {
+        $self.game_log.push((None, $stuff))
+    };
+    ($self:tt, $player:expr, $stuff:expr) => {
+        $self.game_log.push((Some($player), $stuff))
+    };
+}
+
+macro_rules! glogf {
+    ($self:tt, None, $($content:tt)+) => {
+        $self.game_log.push((None, format!($($content)+)))
+    };
     ($self:tt, $player:expr, $($content:tt)+) => {
         $self.game_log.push((Some($player), format!($($content)+)))
-    };
-    ($self:tt, None ,$($content:tt)+) => {
-        $self.game_log.push((None, format!($($content)+)))
     };
 }
 
@@ -184,6 +193,7 @@ impl Game {
             player.round_bet = Currency::ZERO;
         }
         self.phase = phase;
+        glogf!(self, None, "Phase: {phase}");
     }
 
     #[must_use]
@@ -205,6 +215,7 @@ impl Game {
 
     pub fn set_winner(&mut self, w: Winner) {
         self.winner = Some(w);
+        glog!(self, None, self.winner.unwrap().to_string())
     }
 
     #[must_use]
@@ -370,9 +381,9 @@ impl Game {
             }
         }
 
-        self.next_turn();
+        glogf!(self, self.turn, "{action}");
 
-        self.game_log.push((Some(self.turn), action.to_string()));
+        self.next_turn();
 
         Ok(())
     }
@@ -443,11 +454,11 @@ impl Game {
 
         *accounts[sb_pos].currency_mut() -= self.small_blind;
         self.players[sb_pos].round_bet += self.small_blind;
-        glog!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
+        glogf!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
 
         *accounts[bb_pos].currency_mut() -= self.big_blind;
         self.players[bb_pos].round_bet += self.big_blind;
-        glog!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
+        glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
         Ok(())
     }
