@@ -1,6 +1,5 @@
 use poksen::game::evaluator;
 use ratatui::{
-    crossterm::style,
     prelude::*,
     widgets::{Block, Borders, Paragraph, Wrap},
 };
