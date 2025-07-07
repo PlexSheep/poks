@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use poks::errors::Result;
 use poks::game::{Action, Game};
-use poks::{player::PlayerBasicFields, player_impl};
+use poks::{lobby::PlayerBasicFields, player_impl};
 
 pub type ActionAccessor = Arc<RwLock<Option<Action>>>;
 
@@ -27,7 +27,7 @@ impl PlayerLocal {
             .expect("could not read from local player accessor") = Some(action);
     }
 
-    pub fn get_action(accessor: &ActionAccessor, action: Action) -> Option<Action> {
+    pub fn get_action(accessor: &ActionAccessor) -> Option<Action> {
         *accessor
             .read()
             .expect("could not read from local player accessor")

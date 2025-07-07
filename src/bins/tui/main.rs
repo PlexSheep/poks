@@ -29,6 +29,14 @@ fn logging_setup() {
         .open("poks.log")
         .unwrap();
 
+    #[cfg(debug_assertions)]
+    let subscriber = Registry::default().with(
+        fmt::layer()
+            .with_writer(logfile)
+            .with_target(true)
+            .with_filter(filter::LevelFilter::from_level(Level::TRACE)),
+    );
+    #[cfg(not(debug_assertions))]
     let subscriber = Registry::default().with(
         fmt::layer()
             .with_writer(logfile)

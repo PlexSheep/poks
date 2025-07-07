@@ -1,19 +1,22 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
+use tracing::trace;
 
 use crate::Result;
 use crate::errors::PoksError;
 use crate::game::{Game, PlayerID, Winner};
-use crate::player::PlayerBehavior;
 use crate::transaction::Transaction;
+
+mod behavior;
+mod seat;
+pub use behavior::*;
+pub use seat::*;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
-pub type AnyAccount = Box<dyn PlayerBehavior>;
-
 #[derive(Debug)]
 pub struct Lobby {
-    players: Vec<AnyAccount>,
+    players: Vec<Seat>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
     games_played: u64,
@@ -21,7 +24,7 @@ pub struct Lobby {
 
 #[derive(Debug, Default)]
 pub struct LobbyBuilder {
-    pub players: Vec<AnyAccount>,
+    pub players: Vec<Seat>,
 }
 
 impl LobbyBuilder {
@@ -29,23 +32,27 @@ impl LobbyBuilder {
         Self::default()
     }
 
-    pub fn add_player(&mut self, player: AnyAccount) -> Result<&mut Self> {
-        self.players.push(player);
+    pub fn add_player(&mut self, player: BehaveBox) -> Result<&mut Self> {
+        let seat: Seat = player.into();
+        self.players.push(seat);
 
         Ok(self)
     }
 
-    pub fn build(mut self) -> Result<Lobby> {
+    pub fn build(self) -> Result<Lobby> {
+        trace!("Building Lobby");
         let mut w = Lobby {
-            game: Game::build(self.players.len(), &mut self.players, 0).unwrap(), // dummy
+            game: Game::build(&self.players, 0).unwrap(), // dummy
             players: self.players,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
             games_played: 0,
         };
+        trace!("Starting first game");
         w.start_new_game()?;
         for player in &w.players {
-            assert!(player.hand().is_some())
+            assert!(player.behavior().hand().is_some())
         }
+        trace!("Lobby ready");
         Ok(w)
     }
 }
@@ -56,16 +63,13 @@ impl Lobby {
     }
 
     pub fn start_new_game(&mut self) -> Result<()> {
+        trace!("Lobby starts a new game");
         self.games_played += 1;
 
         let dealer_pos = self.games_played as PlayerID % self.players.len();
-        let game = Game::build(self.players.len(), &mut self.players, dealer_pos)?;
+        let game = Game::build(&self.players, dealer_pos)?;
         self.game = game;
-        let players_game = self.game.players();
-        assert_eq!(self.players.len(), players_game.len());
-        for (gp, wp) in self.players.iter_mut().zip(players_game.iter()) {
-            gp.set_hand(wp.hand());
-        }
+        trace!("New game is ready");
         Ok(())
     }
 
@@ -76,7 +80,7 @@ impl Lobby {
         debug_assert!(self.game.turn() < self.players.len());
         let pid = self.game.turn();
         let player = &mut self.players[pid];
-        let action = player.act(&self.game)?;
+        let action = player.behavior_mut().act(&self.game)?;
         let possible_transaction = action.map(|a| a.prepare_transaction());
         let res = match self.game.process_action(action) {
             Ok(_) => Ok(()),
@@ -84,12 +88,7 @@ impl Lobby {
         };
         if let Some(Some(transaction)) = possible_transaction {
             // NOTE: adding is done by the game functionalities
-            transaction.finish(player.currency_mut(), Transaction::garbage())?;
-        }
-        if self.game.is_finished() {
-            let winner: Winner = self.game.winner().unwrap();
-            let winning_player = &mut self.players[winner.pid()];
-            winner.payout(&self.game, winning_player)?;
+            transaction.finish(player.behavior_mut().currency_mut(), Transaction::garbage())?;
         }
         self.update_action_log();
         res
@@ -106,7 +105,7 @@ impl Lobby {
         &self.action_log
     }
 
-    pub fn players(&self) -> &[AnyAccount] {
+    pub fn players(&self) -> &[Seat] {
         &self.players
     }
 }

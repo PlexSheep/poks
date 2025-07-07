@@ -4,12 +4,12 @@ use std::sync::OnceLock;
 use poker::evaluate::FiveCardHandClass;
 use poker::{Card, Eval, Evaluator, FiveCard, Rank, Suit};
 use rand::prelude::*;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
-use crate::lobby::AnyAccount;
-use crate::player::PlayerState;
+use crate::lobby::PlayerState;
+use crate::lobby::Seat;
 use crate::transaction::Transaction;
 use crate::{CU, Result, err_int};
 
@@ -43,15 +43,15 @@ pub enum Winner {
     KnownCards(Currency, PlayerID, Eval<FiveCard>, Cards<7>),
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 pub struct Player {
     state: PlayerState,
     total_bet: Currency,
     round_bet: Currency,
-    hand: Cards<2>,
+    seat: Seat,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Game {
     phase: Phase,
     turn: PlayerID,
@@ -129,23 +129,19 @@ impl Game {
         seed
     }
 
-    pub fn buid_with_seed(
-        player_amount: usize,
-        accounts: &mut Vec<AnyAccount>,
-        dealer_pos: PlayerID,
-        seed: Seed,
-    ) -> Result<Self> {
-        assert!(player_amount >= 2);
+    pub fn buid_with_seed(seats: &[Seat], dealer_pos: PlayerID, seed: Seed) -> Result<Self> {
+        trace!("Building a new game");
+        assert!(seats.len() >= 2);
         let mut rng = RNG::from_seed(seed);
         let mut deck: CardsDynamic = poker::deck::shuffled_with(&mut rng).into();
-        if player_amount > deck.len() / 2 {
+        if seats.len() > deck.len() / 2 {
             // TODO: return a proper error and result
             panic!("Not enough cards in a deck for this many players!")
         }
         let mut players = Vec::new();
-        for _ in 0..player_amount {
+        for seat in seats {
             let hand: Cards<2> = [deck.pop().unwrap(), deck.pop().unwrap()];
-            players.push(Player::new(hand));
+            players.push(Player::new(hand, seat.clone()));
         }
         let mut game = Game {
             turn: 0,
@@ -163,18 +159,15 @@ impl Game {
             seed,
         };
 
-        game.post_blinds(accounts)?;
+        game.post_blinds()?;
 
+        trace!("New game is ready");
         Ok(game)
     }
 
-    pub fn build(
-        player_amount: usize,
-        accounts: &mut Vec<AnyAccount>,
-        dealer_pos: PlayerID,
-    ) -> Result<Self> {
+    pub fn build(seats: &[Seat], dealer_pos: PlayerID) -> Result<Self> {
         let seed = Self::seed();
-        Self::buid_with_seed(player_amount, accounts, dealer_pos, seed)
+        Self::buid_with_seed(seats, dealer_pos, seed)
     }
 
     #[must_use]
@@ -214,6 +207,7 @@ impl Game {
     }
 
     pub fn set_winner(&mut self, w: Winner) {
+        w.payout(self).expect("could not payout the winner");
         self.winner = Some(w);
         glog!(self, None, self.winner.unwrap().to_string())
     }
@@ -254,7 +248,7 @@ impl Game {
                 self.add_table_card();
                 assert_eq!(self.community_cards.len(), 5);
                 self.set_phase(Phase::River);
-                let w = self.showdown();
+                self.showdown();
             }
             Phase::River => unreachable!(),
         }
@@ -262,19 +256,19 @@ impl Game {
 
     pub fn hand_plus_table(&self, pid: PlayerID) -> CardsDynamic {
         let player = &self.players[pid];
-        let mut hand_plus_table: CardsDynamic = player.hand.into();
+        let mut hand_plus_table: CardsDynamic = player.hand().into();
         hand_plus_table.extend(self.community_cards.iter());
         hand_plus_table.sort();
         hand_plus_table
     }
 
-    fn showdown(&mut self) -> Result<Winner> {
+    fn showdown(&mut self) -> Result<()> {
         let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
         for (pid, player) in self.players.iter().enumerate() {
             if player.state != PlayerState::Playing {
                 continue;
             }
-            let mut hand_plus_table: CardsDynamic = player.hand.into();
+            let mut hand_plus_table: CardsDynamic = player.hand().into();
             hand_plus_table.extend(self.community_cards.iter());
             hand_plus_table.sort();
             // TODO: add better result type and return this as error
@@ -296,7 +290,7 @@ impl Game {
         let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
 
-        Ok(winner)
+        Ok(())
     }
 
     fn next_turn(&mut self) {
@@ -447,17 +441,17 @@ impl Game {
         }
     }
 
-    fn post_blinds(&mut self, accounts: &mut Vec<AnyAccount>) -> Result<()> {
+    fn post_blinds(&mut self) -> Result<()> {
         let sb_pos = self.small_blind_position();
         let bb_pos = self.big_blind_position();
 
-        assert_eq!(self.players.len(), accounts.len());
-
-        *accounts[sb_pos].currency_mut() -= self.small_blind;
-        self.players[sb_pos].round_bet += self.small_blind;
+        let sbp = &mut self.players[sb_pos];
+        *sbp.seat.behavior_mut().currency_mut() -= self.small_blind;
+        sbp.round_bet += self.small_blind;
         glogf!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
 
-        *accounts[bb_pos].currency_mut() -= self.big_blind;
+        let bbp = &mut self.players[bb_pos];
+        *bbp.seat.behavior_mut().currency_mut() -= self.small_blind;
         self.players[bb_pos].round_bet += self.big_blind;
         glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
@@ -491,32 +485,51 @@ impl Player {
     #[must_use]
     #[inline]
     pub fn show_hand(&self) -> String {
-        show_cards(&self.hand)
+        show_cards(&self.hand())
     }
 
-    pub fn new(hand: Cards<2>) -> Self {
-        Self {
+    pub fn new(hand: Cards<2>, lobby_seat: Seat) -> Self {
+        let mut p = Self {
             state: Default::default(),
             total_bet: Default::default(),
             round_bet: Default::default(),
-            hand,
-        }
+            seat: lobby_seat,
+        };
+        p.set_hand(hand);
+        p
     }
 
+    #[inline]
+    pub fn set_hand(&mut self, hand: Cards<2>) {
+        self.seat.behavior_mut().set_hand(hand);
+    }
+
+    #[inline]
     pub fn hand(&self) -> [Card; 2] {
-        self.hand
+        self.seat
+            .behavior()
+            .hand()
+            .expect("hand of player was empty")
     }
 
+    #[inline]
     pub fn state(&self) -> PlayerState {
         self.state
     }
 
+    #[inline]
     pub fn total_bet(&self) -> Currency {
         self.total_bet + self.round_bet
     }
 
+    #[inline]
     pub fn round_bet(&self) -> Currency {
         self.round_bet
+    }
+
+    #[inline]
+    pub fn currency(&self) -> Currency {
+        *self.seat.behavior().currency()
     }
 }
 
@@ -547,13 +560,14 @@ impl Action {
 }
 
 impl Winner {
-    pub fn payout(&self, game: &Game, player: &mut AnyAccount) -> Result<()> {
+    pub fn payout(&self, game: &Game) -> Result<()> {
         info!("Payout!");
-        let old = *player.currency();
+        let player = &game.players[self.pid()];
+        let old = player.currency();
         let winnings = game.pot();
         assert_ne!(winnings, CU!(0));
-        *player.currency_mut() += game.pot();
-        assert_eq!(old + winnings, *player.currency());
+        *player.seat.behavior_mut().currency_mut() += game.pot();
+        assert_eq!(old + winnings, player.currency());
         debug!("After Payout? {}", player.currency());
         Ok(())
     }
@@ -676,6 +690,7 @@ pub fn show_eval_cards(cls: FiveCardHandClass, cards: &Cards<7>) -> String {
             fcards!(|c| c.rank() == pair || c.rank() == trips)
         }
         FiveCardHandClass::FourOfAKind { rank } => fcards!(|c| c.rank() == rank),
+        #[allow(unused_variables)] // false positive
         FiveCardHandClass::StraightFlush { rank } => {
             let f: Vec<&Card> = flush!(cards);
             let mut s: Vec<&Card> = straight!(f, rank);

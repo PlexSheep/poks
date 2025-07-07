@@ -2,7 +2,6 @@ pub mod currency;
 pub mod errors;
 pub mod game;
 pub mod lobby;
-pub mod player;
 pub mod transaction;
 
 use crate::errors::Result;

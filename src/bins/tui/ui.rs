@@ -5,7 +5,7 @@ use poks::{
     currency::Currency,
     game::{Action, PlayerID},
     lobby::Lobby,
-    player::PlayerCPU,
+    lobby::PlayerCPU,
 };
 use tracing::{debug, info, trace};
 
@@ -33,24 +33,28 @@ pub(crate) struct PoksTUI {
 
 impl PoksTUI {
     pub(crate) fn new() -> Self {
-        let mut worldb = Lobby::builder();
+        let mut lobby_builder = Lobby::builder();
 
+        trace!("Adding Local Player");
         let player = Box::new(PlayerLocal::new());
         let player_action_field = player.action_field_reference();
-        worldb.add_player(player).unwrap();
+        lobby_builder.add_player(player).unwrap();
 
+        trace!("Adding CPU Players");
         for _ in 1..8 {
-            worldb
+            lobby_builder
                 .add_player(Box::new(PlayerCPU::default()))
                 .expect("could not add cpu player");
         }
 
-        for player in worldb.players.iter_mut() {
+        trace!("Setting start currency");
+        for player in lobby_builder.players.iter_mut() {
             player.set_currency(CU!(5000));
         }
 
-        Self {
-            world: worldb.build().expect("could not prepare world"),
+        trace!("Building datastructure");
+        let ui = Self {
+            world: lobby_builder.build().expect("could not prepare world"),
             should_exit: false,
             frame: 0,
             message: None,
@@ -58,7 +62,9 @@ impl PoksTUI {
             player_id: 0,
             bet: None,
             input_mode: Default::default(),
-        }
+        };
+        trace!("Done setting up the TUI");
+        ui
     }
 
     pub(crate) fn should_exit(&self) -> bool {
@@ -118,7 +124,7 @@ impl PoksTUI {
                 KeyCode::F(3) => self.set_input_mode(InputMode::Bet),
                 KeyCode::F(4) => PlayerLocal::set_action(
                     &self.player_af,
-                    Action::AllIn(*self.lobby().players()[self.player_id].currency()),
+                    Action::AllIn(self.lobby().players()[self.player_id].currency()),
                 ),
                 _ => (),
             }

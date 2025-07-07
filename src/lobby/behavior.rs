@@ -24,14 +24,13 @@ pub trait PlayerBehavior: Debug {
     // compute heavy
     fn act(&mut self, game: &Game) -> Result<Option<Action>>;
 
+    #[inline]
     fn set_hand(&mut self, new: Cards<2>) {
         *self.hand_mut() = Some(new);
     }
+    #[inline]
     fn set_currency(&mut self, new: Currency) {
         *self.currency_mut() = new;
-    }
-    fn win(&mut self, game: Game) {
-        *self.currency_mut() += game.pot();
     }
 }
 
@@ -49,7 +48,7 @@ pub struct PlayerCPU {
 #[macro_export]
 macro_rules! player_impl {
     ($struct:ident, $base_field:tt, $($extra:tt)+) => {
-        impl $crate::player::PlayerBehavior for $struct {
+        impl $crate::lobby::PlayerBehavior for $struct {
             fn hand(&self) -> &Option<$crate::game::Cards<2>> {
                 &self.$base_field.hand
             }
@@ -65,6 +64,10 @@ macro_rules! player_impl {
             }
             $($extra)+
         }
+        #[automatically_derived]
+        unsafe impl Send for $struct {}
+        #[automatically_derived]
+        unsafe impl Sync for $struct {}
     };
 }
 

@@ -1,6 +1,6 @@
 use crate::currency::Currency;
 use crate::game::PlayerID;
-use crate::player::PlayerState;
+use crate::lobby::PlayerState;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, PoksError>;
