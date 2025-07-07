@@ -1,8 +1,8 @@
 use ntest::timeout;
-use poks::{CU, player::PlayerCPU, world::World};
+use poks::{CU, lobby::Lobby, player::PlayerCPU};
 
-fn get_world() -> World {
-    let mut wb = World::builder();
+fn get_world() -> Lobby {
+    let mut wb = Lobby::builder();
     for _ in 0..8 {
         wb.add_player(Box::new(PlayerCPU::default())).unwrap();
     }

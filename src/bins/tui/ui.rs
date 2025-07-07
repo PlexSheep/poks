@@ -4,8 +4,8 @@ use poks::{
     CU,
     currency::Currency,
     game::{Action, PlayerID},
+    lobby::Lobby,
     player::PlayerCPU,
-    world::World,
 };
 use tracing::{debug, info, trace};
 
@@ -21,7 +21,7 @@ pub(crate) enum InputMode {
 }
 
 pub(crate) struct PoksTUI {
-    world: World,
+    world: Lobby,
     should_exit: bool,
     frame: u32,
     message: Option<String>,
@@ -33,7 +33,7 @@ pub(crate) struct PoksTUI {
 
 impl PoksTUI {
     pub(crate) fn new() -> Self {
-        let mut worldb = World::builder();
+        let mut worldb = Lobby::builder();
 
         let player = Box::new(PlayerLocal::new());
         let player_action_field = player.action_field_reference();
@@ -177,7 +177,7 @@ impl PoksTUI {
         Ok(())
     }
 
-    pub(crate) fn world(&self) -> &World {
+    pub(crate) fn world(&self) -> &Lobby {
         &self.world
     }
 

@@ -11,7 +11,8 @@ pub const ACTION_LOG_SIZE: usize = 2000;
 
 pub type AnyAccount = Box<dyn PlayerBehavior>;
 
-pub struct World {
+#[derive(Debug)]
+pub struct Lobby {
     players: Vec<AnyAccount>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
@@ -19,11 +20,11 @@ pub struct World {
 }
 
 #[derive(Debug, Default)]
-pub struct WorldBuilder {
+pub struct LobbyBuilder {
     pub players: Vec<AnyAccount>,
 }
 
-impl WorldBuilder {
+impl LobbyBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -34,8 +35,8 @@ impl WorldBuilder {
         Ok(self)
     }
 
-    pub fn build(mut self) -> Result<World> {
-        let mut w = World {
+    pub fn build(mut self) -> Result<Lobby> {
+        let mut w = Lobby {
             game: Game::build(self.players.len(), &mut self.players, 0).unwrap(), // dummy
             players: self.players,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
@@ -49,9 +50,9 @@ impl WorldBuilder {
     }
 }
 
-impl World {
-    pub fn builder() -> WorldBuilder {
-        WorldBuilder::default()
+impl Lobby {
+    pub fn builder() -> LobbyBuilder {
+        LobbyBuilder::default()
     }
 
     pub fn start_new_game(&mut self) -> Result<()> {
@@ -109,15 +110,5 @@ impl World {
 
     pub fn players(&self) -> &[AnyAccount] {
         &self.players
-    }
-}
-
-impl Debug for World {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("World")
-            .field("players", &self.players)
-            .field("game", &self.game)
-            .field("action_log", &self.action_log)
-            .finish()
     }
 }
