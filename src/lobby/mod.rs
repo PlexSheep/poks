@@ -4,7 +4,7 @@ use tracing::trace;
 
 use crate::Result;
 use crate::errors::PoksError;
-use crate::game::{Game, PlayerID, Winner};
+use crate::game::{Game, PlayerID};
 use crate::transaction::Transaction;
 
 mod behavior;
