@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::sync::OnceLock;
 
 use poker::evaluate::FiveCardHandClass;
-use poker::{Card, Eval, Evaluator, FiveCard, Suit};
+use poker::{Card, Eval, Evaluator, FiveCard, Rank, Suit};
 use tracing::{debug, info};
 
 use crate::currency::Currency;
@@ -507,9 +507,9 @@ impl Winner {
     }
 }
 
-pub fn show_cards(cards: &[Card]) -> String {
+pub fn show_cards(cards: &[impl Display]) -> String {
     let mut buf = String::new();
-    for card in cards {
+    for card in cards.into_iter() {
         buf.push_str(&card.to_string());
     }
     buf
@@ -523,24 +523,28 @@ pub fn evaluator() -> &'static Evaluator {
 pub fn show_eval_cards(cls: FiveCardHandClass, cards: &Cards<7>) -> String {
     assert!(cards.is_sorted());
 
-    let todo = String::from("todo");
+    // HACK: These macros can likely be implemented with functions
     macro_rules! scards {
         ($collection:expr) => {{
             $collection.sort();
             $collection.reverse();
-            $collection.into_iter().map(|c| c.to_string()).collect()
+            $collection.truncate(5);
+            debug_assert!($collection.len() <= 5); // BUG: this sometimes fails
+            debug_assert!($collection.len() >= 1);
+            $collection
         }};
     }
     macro_rules! filter {
         ($cards:tt, $filter:expr) => {{
-            let mut _v: Vec<_> = $cards.iter().rev().filter($filter).collect();
+            let mut _v: Vec<&Card> = $cards.into_iter().rev().filter($filter).collect();
             _v
         }};
     }
     macro_rules! fcards {
-        ($filter:expr) => {
-            scards!(filter!(cards, $filter))
-        };
+        ($filter:expr) => {{
+            let mut _filter = filter!(cards, $filter);
+            scards!(_filter)
+        }};
     }
     macro_rules! flush {
         ($cards:tt) => {{
@@ -553,11 +557,51 @@ pub fn show_eval_cards(cls: FiveCardHandClass, cards: &Cards<7>) -> String {
             v.sort_by_key(|b| std::cmp::Reverse(b.len()));
             let longest = &mut v[0];
             longest.truncate(5);
+            debug_assert_eq!(longest.len(), 5);
             longest.clone()
         }};
     }
-    match cls {
-        FiveCardHandClass::HighCard { .. } => cards[6].to_string(),
+    // PERF: This can likely be implemented more efficiently
+    macro_rules! straight {
+        ($cards:tt, $rank:tt) => {{
+            let mut v: Vec<&Card> = Vec::with_capacity(5);
+            let mut ranks = [
+                Rank::Two,
+                Rank::Three,
+                Rank::Four,
+                Rank::Five,
+                Rank::Six,
+                Rank::Seven,
+                Rank::Eight,
+                Rank::Nine,
+                Rank::Ten,
+                Rank::Jack,
+                Rank::Queen,
+                Rank::King,
+                Rank::Ace,
+            ];
+            ranks.reverse();
+            let mut nr: usize = ranks.iter().position(|r| *r == $rank).unwrap();
+            let mut next_rank = $rank;
+            for _ in 0..5 {
+                v.push(
+                    cards
+                        .iter()
+                        .filter(|c| c.rank() == next_rank)
+                        .collect::<Vec<_>>()[0],
+                );
+                nr = (nr + 1) % ranks.len();
+                next_rank = ranks[nr];
+            }
+            v.truncate(5);
+            debug_assert!(v.len() <= 5);
+            v.sort();
+            v.reverse();
+            v
+        }};
+    }
+    let cards: Vec<&Card> = match cls {
+        FiveCardHandClass::HighCard { .. } => vec![&cards[6]],
         FiveCardHandClass::Pair { rank } => fcards!(|c| c.rank() == rank),
         FiveCardHandClass::TwoPair {
             high_rank,
@@ -565,25 +609,21 @@ pub fn show_eval_cards(cls: FiveCardHandClass, cards: &Cards<7>) -> String {
         } => fcards!(|c| c.rank() == high_rank || c.rank() == low_rank),
         FiveCardHandClass::ThreeOfAKind { rank } => fcards!(|c| c.rank() == rank),
         FiveCardHandClass::Straight { rank } => {
-            let mut v = filter!(cards, |c| c.rank() <= rank);
-            v.truncate(5);
-            v.reverse();
-            scards!(v)
+            scards!(straight!(cards, rank))
         }
         FiveCardHandClass::Flush { .. } => scards!(flush!(cards)),
         FiveCardHandClass::FullHouse { trips, pair } => {
+            // BUG: sometimes, an assert here fails
             fcards!(|c| c.rank() == pair || c.rank() == trips)
         }
         FiveCardHandClass::FourOfAKind { rank } => fcards!(|c| c.rank() == rank),
         FiveCardHandClass::StraightFlush { rank } => {
-            let flushcards: Vec<&Card> = flush!(cards);
-            let mut v = filter!(flushcards, |c| c.rank() <= rank);
-            v.truncate(5);
-            v.reverse();
-            scards!(v)
+            let f: Vec<&Card> = flush!(cards);
+            let mut s: Vec<&Card> = straight!(f, rank);
+            scards!(s)
         }
-    }
-    // show_cards(&cards)
+    };
+    show_cards(&cards)
 }
 
 #[cfg(test)]
@@ -599,30 +639,34 @@ mod test {
     fn test_show_eval_cards() {
         let r: Vec<(Vec<_>, &str)> = vec![
             (cards!("Th 2c 3c 4c 5c 7h 8h").collect(), "[ T♥ ]"), // high card
-            (cards!("Th Tc 3c 4c 5c 7h 8h").collect(), "[ T♣ ][ T♥ ]"), // pair
+            (cards!("Th Tc 3c 4c 5c 7h 8h").collect(), "[ T♥ ][ T♣ ]"), // pair
             (
                 cards!("Th Tc 3c 3h 5c 7h 8h").collect(),
-                "[ T♣ ][ T♥ ][ 3♥ ][ 3♣ ]",
+                "[ T♥ ][ T♣ ][ 3♣ ][ 3♥ ]",
             ), // two pair
             (
                 cards!("Th Tc Td 5c 6h 7h 8h").collect(),
-                "[ T♦ ][ T♣ ][ T♥ ]",
+                "[ T♥ ][ T♣ ][ T♦ ]",
             ), // set
             (
                 cards!("Th 3c 4c 5c 6h 7h 8h").collect(),
                 "[ 8♥ ][ 7♥ ][ 6♥ ][ 5♣ ][ 4♣ ]",
             ), // straight
             (
+                cards!("Ah 3c 4c 2c 5h 7h 8h").collect(),
+                "[ A♥ ][ 5♥ ][ 4♣ ][ 3♣ ][ 2♣ ]",
+            ), // straight that wraps around
+            (
                 cards!("Th 3h 4h 5c 6h 7h 8h").collect(),
                 "[ T♥ ][ 8♥ ][ 7♥ ][ 6♥ ][ 4♥ ]",
             ), // flush
             (
                 cards!("Th Tc Td 5c 5h 7h 8h").collect(),
-                "[ T♦ ][ T♣ ][ T♥ ][ 5♥ ][ 5♣ ]",
+                "[ T♥ ][ T♣ ][ T♦ ][ 5♣ ][ 5♥ ]",
             ), // full house
             (
                 cards!("Th Tc Td Ts 6h 7h 8h").collect(),
-                "[ T♠ ][ T♦ ][ T♣ ][ T♥ ]",
+                "[ T♥ ][ T♣ ][ T♦ ][ T♠ ]",
             ), // quads
             (
                 cards!("9h 3c 4h 5h 6h 7h 8h").collect(),
