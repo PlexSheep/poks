@@ -1,5 +1,5 @@
 use ntest::timeout;
-use poks::{CU, lobby::Lobby, lobby::PlayerCPU};
+use poksen::{CU, lobby::Lobby, players::PlayerCPU};
 
 fn get_world() -> Lobby {
     let mut wb = Lobby::builder();
