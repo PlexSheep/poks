@@ -88,7 +88,7 @@ macro_rules! current_player {
 }
 
 macro_rules! glog {
-    ($self:tt, $player:expr ,$($content:tt)+) => {
+    ($self:tt, $player:expr, $($content:tt)+) => {
         $self.game_log.push((Some($player), format!($($content)+)))
     };
     ($self:tt, None ,$($content:tt)+) => {
@@ -221,6 +221,7 @@ impl Game {
             }
             let mut hand_plus_table: CardsDynamic = player.hand.into();
             hand_plus_table.extend(self.community_cards.iter());
+            hand_plus_table.sort();
             // TODO: add better result type and return this as error
             evals.push((
                 pid,
@@ -234,6 +235,9 @@ impl Game {
         }
 
         evals.sort_by(|a, b| b.1.cmp(&a.1));
+        if evals[0] == evals[1] {
+            todo!("We have a draw!")
+        }
         let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
 
