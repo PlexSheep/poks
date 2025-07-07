@@ -16,13 +16,13 @@ pub enum Winner {
 }
 
 impl Winner {
-    pub fn payout(&self, game: &Game) -> Result<()> {
+    pub fn payout(&self, game: &mut Game) -> Result<()> {
         info!("Payout!");
-        let player = &game.players[self.pid()];
-        let old = player.currency();
         let winnings = game.pot();
+        let player = &mut game.players[self.pid()];
+        let old = player.currency();
         assert_ne!(winnings, CU!(0));
-        *player.seat.behavior_mut().currency_mut() += game.pot();
+        *player.currency_mut() += winnings;
         assert_eq!(old + winnings, player.currency());
         debug!("After Payout? {}", player.currency());
         Ok(())

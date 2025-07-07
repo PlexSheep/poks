@@ -9,11 +9,19 @@ pub mod local;
 pub use cpu::PlayerCPU;
 pub use local::PlayerLocal;
 
+mod seat;
+pub use seat::*;
+
 use std::fmt::Debug;
 
-use crate::currency::Currency;
-use crate::game::cards::{Card, Cards, show_cards};
-use crate::lobby::Seat;
+use crate::{
+    Result,
+    currency::Currency,
+    game::{
+        Action,
+        cards::{Card, Cards, show_cards},
+    },
+};
 
 pub type PlayerID = usize;
 pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
@@ -23,6 +31,7 @@ pub struct Player {
     pub state: PlayerState,
     pub total_bet: Currency,
     pub round_bet: Currency,
+    pub hand: Cards<2>,
     pub seat: Seat,
 }
 
@@ -30,32 +39,6 @@ pub struct Player {
 pub struct PlayerBasicFields {
     pub hand: Option<Cards<2>>,
     pub currency: Currency,
-}
-
-#[macro_export]
-macro_rules! player_impl {
-    ($struct:ident, $base_field:tt, $($extra:tt)+) => {
-        impl $crate::players::PlayerBehavior for $struct {
-            fn hand(&self) -> &Option<$crate::game::cards::Cards<2>> {
-                &self.$base_field.hand
-            }
-
-            fn hand_mut(&mut self) -> &mut Option<$crate::game::cards::Cards<2>> {
-                &mut self.$base_field.hand
-            }
-            fn currency(&self) -> &$crate::currency::Currency {
-                &self.$base_field.currency
-            }
-            fn currency_mut(&mut self) -> &mut $crate::currency::Currency {
-                &mut self.$base_field.currency
-            }
-            $($extra)+
-        }
-        #[automatically_derived]
-        unsafe impl Send for $struct {}
-        #[automatically_derived]
-        unsafe impl Sync for $struct {}
-    };
 }
 
 impl Player {
@@ -66,27 +49,28 @@ impl Player {
     }
 
     pub fn new(hand: Cards<2>, lobby_seat: Seat) -> Self {
-        let mut p = Self {
+        Self {
             state: Default::default(),
             total_bet: Default::default(),
             round_bet: Default::default(),
             seat: lobby_seat,
-        };
-        p.set_hand(hand);
-        p
+            hand,
+        }
     }
 
     #[inline]
     pub fn set_hand(&mut self, hand: Cards<2>) {
-        self.seat.behavior_mut().set_hand(hand);
+        self.hand = hand;
     }
 
     #[inline]
     pub fn hand(&self) -> [Card; 2] {
-        self.seat
-            .behavior()
-            .hand()
-            .expect("hand of player was empty")
+        self.hand
+    }
+
+    #[inline]
+    pub fn hand_mut(&mut self) -> &mut [Card; 2] {
+        &mut self.hand
     }
 
     #[inline]
@@ -106,6 +90,52 @@ impl Player {
 
     #[inline]
     pub fn currency(&self) -> Currency {
-        *self.seat.behavior().currency()
+        self.seat.currency()
+    }
+
+    #[inline]
+    pub fn currency_mut(&mut self) -> &mut Currency {
+        self.seat.currency_mut()
+    }
+
+    #[inline]
+    pub fn set_currency(&mut self, cu: Currency) {
+        self.seat.set_currency(cu);
+    }
+
+    pub fn set_state(&mut self, state: PlayerState) {
+        self.state = state;
+    }
+
+    pub fn state_mut(&mut self) -> &mut PlayerState {
+        &mut self.state
+    }
+
+    pub fn total_bet_mut(&mut self) -> &mut Currency {
+        &mut self.total_bet
+    }
+
+    pub fn set_total_bet(&mut self, total_bet: Currency) {
+        self.total_bet = total_bet;
+    }
+
+    pub fn round_bet_mut(&mut self) -> &mut Currency {
+        &mut self.round_bet
+    }
+
+    pub fn set_round_bet(&mut self, round_bet: Currency) {
+        self.round_bet = round_bet;
+    }
+
+    pub fn seat(&self) -> &Seat {
+        &self.seat
+    }
+
+    pub fn seat_mut(&mut self) -> &mut Seat {
+        &mut self.seat
+    }
+
+    pub fn act(&self, game: &crate::game::Game) -> Result<Option<Action>> {
+        self.seat.act(game, self)
     }
 }

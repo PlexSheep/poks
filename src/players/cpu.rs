@@ -3,8 +3,7 @@ use rand::prelude::*;
 use crate::{
     CU, Result,
     game::{Action, Game},
-    player_impl,
-    players::PlayerBasicFields,
+    players::{PlayerBasicFields, PlayerBehavior},
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -12,10 +11,8 @@ pub struct PlayerCPU {
     base: PlayerBasicFields,
 }
 
-player_impl!(
-    PlayerCPU,
-    base,
-    fn act(&mut self, game: &Game) -> Result<Option<Action>> {
+impl PlayerBehavior for PlayerCPU {
+    fn act(&mut self, game: &Game, player: &super::Player) -> Result<Option<Action>> {
         let mut rng = rand::rngs::OsRng;
         let disc: u8 = rng.gen_range(0..=100);
         let mut a = match disc {
@@ -23,16 +20,16 @@ player_impl!(
             10..70 => game.action_call(),
             70..99 => Action::Raise(CU!(10)),
             99 => Action::Raise(CU!(100)),
-            100 => Action::AllIn(*self.currency()),
+            100 => Action::AllIn(player.currency()),
             _ => unreachable!(),
         };
 
         if let Action::Raise(bet) = a {
-            if bet >= *self.currency() {
+            if bet >= player.currency() {
                 a = Action::Fold;
             }
         }
 
         Ok(Some(a))
     }
-);
+}

@@ -19,8 +19,7 @@ pub use winner::*;
 
 use crate::PoksError;
 use crate::currency::Currency;
-use crate::lobby::Seat;
-use crate::players::{Player, PlayerID, PlayerState};
+use crate::players::{Player, PlayerID, PlayerState, Seat};
 use crate::{CU, Result, err_int};
 
 pub type GlogItem = (Option<PlayerID>, String);
@@ -392,12 +391,12 @@ impl Game {
         let bb_pos = self.big_blind_position();
 
         let sbp = &mut self.players[sb_pos];
-        *sbp.seat.behavior_mut().currency_mut() -= self.small_blind;
+        *sbp.currency_mut() -= self.small_blind;
         sbp.round_bet += self.small_blind;
         glogf!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
 
         let bbp = &mut self.players[bb_pos];
-        *bbp.seat.behavior_mut().currency_mut() -= self.small_blind;
+        *bbp.currency_mut() -= self.small_blind;
         self.players[bb_pos].round_bet += self.big_blind;
         glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
