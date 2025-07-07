@@ -1,13 +1,19 @@
 use ntest::timeout;
-use poksen::{CU, PoksError, lobby::Lobby, players::PlayerCPU};
+use poksen::{
+    CU, PoksError,
+    lobby::Lobby,
+    players::{PlayerCPU, Seat},
+};
 
 fn get_world() -> Lobby {
+    let startc = CU!(5000);
     let mut wb = Lobby::builder();
     for _ in 0..8 {
-        wb.add_player(Box::new(PlayerCPU::default())).unwrap();
+        let seat = Seat::new(startc, PlayerCPU::default());
+        wb.add_seat(seat).unwrap();
     }
     for player in wb.players.iter_mut() {
-        player.set_currency(CU!(5000));
+        player.set_currency(startc);
     }
     wb.build().unwrap()
 }

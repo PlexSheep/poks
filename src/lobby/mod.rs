@@ -5,16 +5,13 @@ use tracing::trace;
 use crate::Result;
 use crate::errors::PoksError;
 use crate::game::Game;
-use crate::players::PlayerID;
-
-mod seat;
-pub use seat::*;
+use crate::players::{PlayerID, Seat};
 
 pub const ACTION_LOG_SIZE: usize = 2000;
 
 #[derive(Debug)]
 pub struct Lobby {
-    players: Vec<Seat>,
+    seats: Vec<Seat>,
     pub game: Game,
     action_log: CircularQueue<(Option<PlayerID>, String)>,
     games_played: u64,
@@ -30,8 +27,7 @@ impl LobbyBuilder {
         Self::default()
     }
 
-    pub fn add_player(&mut self, player: BehaveBox) -> Result<&mut Self> {
-        let seat: Seat = player.into();
+    pub fn add_seat(&mut self, seat: Seat) -> Result<&mut Self> {
         self.players.push(seat);
 
         Ok(self)
@@ -41,15 +37,12 @@ impl LobbyBuilder {
         trace!("Building Lobby");
         let mut w = Lobby {
             game: Game::build(&self.players, 0).unwrap(), // dummy
-            players: self.players,
+            seats: self.players,
             action_log: CircularQueue::with_capacity(ACTION_LOG_SIZE),
             games_played: 0,
         };
         trace!("Starting first game");
         w.start_new_game()?;
-        for player in &w.players {
-            assert!(player.behavior().hand().is_some())
-        }
         trace!("Lobby ready");
         Ok(w)
     }
@@ -64,8 +57,8 @@ impl Lobby {
         trace!("Lobby starts a new game");
         self.games_played += 1;
 
-        let dealer_pos = self.games_played as PlayerID % self.players.len();
-        let game = Game::build(&self.players, dealer_pos)?;
+        let dealer_pos = self.games_played as PlayerID % self.seats.len();
+        let game = Game::build(&self.seats, dealer_pos)?;
         self.game = game;
         trace!("New game is ready");
         Ok(())
@@ -75,10 +68,10 @@ impl Lobby {
         if self.game.is_finished() {
             return Err(PoksError::GameFinished);
         }
-        debug_assert!(self.game.turn() < self.players.len());
-        let pid = self.game.turn();
-        let player = &mut self.players[pid];
-        let action = player.behavior_mut().act(&self.game)?;
+        debug_assert!(self.game.turn() < self.seats.len());
+        let game = self.game.clone();
+        let player = &mut self.game.current_player_mut();
+        let action = player.act(&game)?;
         let res = match self.game.process_action(action) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -98,7 +91,7 @@ impl Lobby {
         &self.action_log
     }
 
-    pub fn players(&self) -> &[Seat] {
-        &self.players
+    pub fn seats(&self) -> &[Seat] {
+        &self.seats
     }
 }

@@ -5,7 +5,7 @@ use poksen::{
     currency::Currency,
     game::Action,
     lobby::Lobby,
-    players::{PlayerCPU, PlayerID, PlayerLocal, local::ActionAccessor},
+    players::{PlayerCPU, PlayerID, PlayerLocal, Seat, local::ActionAccessor},
 };
 use tracing::{debug, info, trace};
 
@@ -33,21 +33,22 @@ impl PoksTUI {
     pub(crate) fn new() -> Self {
         let mut lobby_builder = Lobby::builder();
 
+        let startc = CU!(5000);
+
         trace!("Adding Local Player");
-        let player = Box::new(PlayerLocal::new());
+        let player = PlayerLocal::new();
         let player_action_field = player.action_field_reference();
-        lobby_builder.add_player(player).unwrap();
+        {
+            let seat = Seat::new(startc, PlayerCPU::default());
+            lobby_builder.add_seat(seat).unwrap();
+        }
 
         trace!("Adding CPU Players");
         for _ in 1..8 {
+            let seat = Seat::new(startc, PlayerCPU::default());
             lobby_builder
-                .add_player(Box::new(PlayerCPU::default()))
+                .add_seat(seat)
                 .expect("could not add cpu player");
-        }
-
-        trace!("Setting start currency");
-        for player in lobby_builder.players.iter_mut() {
-            player.set_currency(CU!(5000));
         }
 
         trace!("Building datastructure");
@@ -122,7 +123,7 @@ impl PoksTUI {
                 KeyCode::F(3) => self.set_input_mode(InputMode::Bet),
                 KeyCode::F(4) => PlayerLocal::set_action(
                     &self.player_af,
-                    Action::AllIn(self.lobby().players()[self.player_id].currency()),
+                    Action::AllIn(self.lobby().seats()[self.player_id].currency()),
                 ),
                 _ => (),
             }

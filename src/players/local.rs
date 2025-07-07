@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::Result;
 use crate::game::{Action, Game};
-use crate::{player_impl, players::PlayerBasicFields};
+use crate::players::{PlayerBasicFields, PlayerBehavior};
 
 pub type ActionAccessor = Arc<RwLock<Option<Action>>>;
 
@@ -41,10 +41,8 @@ impl PlayerLocal {
     }
 }
 
-player_impl!(
-    PlayerLocal,
-    base,
-    fn act(&mut self, _game: &Game) -> Result<Option<Action>> {
+impl PlayerBehavior for PlayerLocal {
+    fn act(&mut self, _game: &Game, _player: &super::Player) -> Result<Option<Action>> {
         Ok(self.take_next_action())
     }
-);
+}

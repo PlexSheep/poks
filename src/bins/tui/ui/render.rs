@@ -61,7 +61,7 @@ impl PoksTUI {
 
     fn gamedata(&self) -> String {
         let game = &self.lobby().game;
-        let player = &self.world.players()[self.player_id];
+        let player = &self.world.game.players()[self.player_id];
         let mut buf = format!(
             "Turn of Player: {:01} | You are Player: {:01} | Pot: {} | Currency: {}",
             game.turn(),
@@ -70,7 +70,7 @@ impl PoksTUI {
             player.currency(),
         );
 
-        if player.hand().is_some() && game.community_cards().len() >= 3 {
+        if game.community_cards().len() >= 3 {
             let combined = game.hand_plus_table(self.player_id);
 
             let eval = evaluator()
@@ -83,7 +83,7 @@ impl PoksTUI {
     }
 
     fn render_players(&self, area: Rect, frame: &mut Frame<'_>) {
-        let players = self.lobby().players();
+        let players = self.lobby().seats();
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(4); players.len()])
@@ -123,7 +123,7 @@ impl PoksTUI {
 
     fn render_world(&self, area: Rect, frame: &mut Frame<'_>) {
         let world = self.lobby();
-        debug_assert!(!world.players().is_empty());
+        debug_assert!(!world.seats().is_empty());
 
         let you = &world.game.players()[self.player_id];
 
