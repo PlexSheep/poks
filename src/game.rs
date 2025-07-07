@@ -19,6 +19,7 @@ pub type PlayerID = usize;
 pub type Cards<const N: usize> = [Card; N];
 pub type GlogItem = (Option<PlayerID>, String);
 pub type RNG = rand::rngs::StdRng;
+pub type Seed = <RNG as rand::SeedableRng>::Seed;
 
 pub static EVALUATOR: OnceLock<Evaluator> = OnceLock::new();
 
@@ -63,7 +64,7 @@ pub struct Game {
     small_blind: Currency,
     big_blind: Currency,
     game_log: Vec<GlogItem>,
-    seed: <RNG as rand::SeedableRng>::Seed,
+    seed: Seed,
     rng: RNG,
 }
 
@@ -102,13 +103,32 @@ macro_rules! glog {
 }
 
 impl Game {
-    pub fn build(
+    pub fn seed() -> Seed {
+        let mut os_rng = rand::rngs::OsRng;
+        let mut seed: Seed = Seed::default();
+        let mut guard = 0;
+        while seed == Seed::default() {
+            seed = os_rng.r#gen();
+            guard += 1;
+            if guard > 255 {
+                panic!(
+                    "Generating a seed failed 256 times in a row, something is wrong with the os rng!!!"
+                )
+            }
+        }
+        assert_ne!(seed, [0; 32]); // enough seeds besides that one.
+        seed
+    }
+
+    pub fn buid_with_seed(
         player_amount: usize,
         accounts: &mut Vec<AnyAccount>,
         dealer_pos: PlayerID,
+        seed: Seed,
     ) -> Result<Self> {
         assert!(player_amount >= 2);
-        let mut deck: CardsDynamic = poker::deck::shuffled().into();
+        let mut rng = RNG::from_seed(seed);
+        let mut deck: CardsDynamic = poker::deck::shuffled_with(&mut rng).into();
         if player_amount > deck.len() / 2 {
             // TODO: return a proper error and result
             panic!("Not enough cards in a deck for this many players!")
@@ -118,8 +138,6 @@ impl Game {
             let hand: Cards<2> = [deck.pop().unwrap(), deck.pop().unwrap()];
             players.push(Player::new(hand));
         }
-        let seed = <RNG as rand::SeedableRng>::Seed::default();
-        let rng = RNG::from_seed(seed);
         let mut game = Game {
             turn: 0,
             phase: Phase::default(),
@@ -139,6 +157,15 @@ impl Game {
         game.post_blinds(accounts)?;
 
         Ok(game)
+    }
+
+    pub fn build(
+        player_amount: usize,
+        accounts: &mut Vec<AnyAccount>,
+        dealer_pos: PlayerID,
+    ) -> Result<Self> {
+        let seed = Self::seed();
+        Self::buid_with_seed(player_amount, accounts, dealer_pos, seed)
     }
 
     #[must_use]

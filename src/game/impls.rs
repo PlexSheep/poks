@@ -4,7 +4,7 @@ use std::{
 };
 
 use poker::Card;
-use rand::{distr::StandardUniform, prelude::Distribution};
+use rand::{distributions::Standard, prelude::Distribution};
 
 use crate::{
     CU,
@@ -53,9 +53,9 @@ impl Display for Action {
     }
 }
 
-impl Distribution<Action> for StandardUniform {
+impl Distribution<Action> for Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Action {
-        let disc: u8 = rng.random_range(0..=70);
+        let disc: u8 = rng.gen_range(0..=70);
         match disc {
             0 => Action::Fold,
             1..70 => Action::check(),
