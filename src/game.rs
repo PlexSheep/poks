@@ -426,6 +426,14 @@ impl Game {
         self.game_log = Vec::with_capacity(32);
         a
     }
+
+    pub fn big_blind(&self) -> Currency {
+        self.big_blind
+    }
+
+    pub fn small_blind(&self) -> Currency {
+        self.small_blind
+    }
 }
 
 impl Player {
@@ -453,7 +461,7 @@ impl Player {
     }
 
     pub fn total_bet(&self) -> Currency {
-        self.total_bet
+        self.total_bet + self.round_bet
     }
 
     pub fn round_bet(&self) -> Currency {

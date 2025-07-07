@@ -3,7 +3,7 @@ use std::{fs::OpenOptions, time::Duration};
 use color_eyre::Result;
 use crossterm::event;
 use ratatui::DefaultTerminal;
-use tracing::Level;
+use tracing::{Level, debug};
 use tracing_subscriber::{Registry, filter, fmt, prelude::*};
 
 use crate::ui::PoksTUI;
@@ -36,10 +36,13 @@ fn logging_setup() {
     );
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
+    debug!("Logging setup finished")
 }
 
 fn run(mut terminal: DefaultTerminal) -> Result<()> {
     let mut tui = PoksTUI::new();
+
+    debug!("Starting the main loop");
 
     while !tui.should_exit() {
         terminal.draw(|f| tui.render(f))?;

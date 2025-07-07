@@ -142,6 +142,14 @@ impl Mul for Currency {
     }
 }
 
+impl Mul<u64> for Currency {
+    type Output = Self;
+
+    fn mul(self, rhs: u64) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
 impl Div for Currency {
     type Output = Self;
 
@@ -173,6 +181,12 @@ impl SubAssign for Currency {
 impl MulAssign for Currency {
     fn mul_assign(&mut self, rhs: Self) {
         self.0 *= rhs.0
+    }
+}
+
+impl MulAssign<u64> for Currency {
+    fn mul_assign(&mut self, rhs: u64) {
+        self.0 *= rhs
     }
 }
 
