@@ -1,9 +1,14 @@
-use rand::prelude::*;
+pub mod cpu;
+pub mod local;
+
+pub use cpu::PlayerCPU;
+pub use local::PlayerLocal;
+
 use std::fmt::Debug;
 
+use crate::Result;
 use crate::currency::Currency;
 use crate::game::{Action, Cards, Game};
-use crate::{CU, Result};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum PlayerState {
@@ -20,8 +25,6 @@ pub trait PlayerBehavior: Debug {
     fn hand_mut(&mut self) -> &mut Option<Cards<2>>;
     fn currency(&self) -> &Currency;
     fn currency_mut(&mut self) -> &mut Currency;
-    // TODO: add some functionality to ensure this isn't called too often, since it might be
-    // compute heavy
     fn act(&mut self, game: &Game) -> Result<Option<Action>>;
 
     #[inline]
@@ -40,15 +43,10 @@ pub struct PlayerBasicFields {
     pub currency: Currency,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct PlayerCPU {
-    base: PlayerBasicFields,
-}
-
 #[macro_export]
 macro_rules! player_impl {
     ($struct:ident, $base_field:tt, $($extra:tt)+) => {
-        impl $crate::lobby::PlayerBehavior for $struct {
+        impl $crate::players::PlayerBehavior for $struct {
             fn hand(&self) -> &Option<$crate::game::Cards<2>> {
                 &self.$base_field.hand
             }
@@ -70,31 +68,6 @@ macro_rules! player_impl {
         unsafe impl Sync for $struct {}
     };
 }
-
-player_impl!(
-    PlayerCPU,
-    base,
-    fn act(&mut self, game: &Game) -> Result<Option<Action>> {
-        let mut rng = rand::rngs::OsRng;
-        let disc: u8 = rng.gen_range(0..=100);
-        let mut a = match disc {
-            0..10 => Action::Fold,
-            10..70 => game.action_call(),
-            70..99 => Action::Raise(CU!(10)),
-            99 => Action::Raise(CU!(100)),
-            100 => Action::AllIn(*self.currency()),
-            _ => unreachable!(),
-        };
-
-        if let Action::Raise(bet) = a {
-            if bet >= *self.currency() {
-                a = Action::Fold;
-            }
-        }
-
-        Ok(Some(a))
-    }
-);
 
 impl PlayerState {
     #[inline]

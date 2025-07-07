@@ -1,10 +1,10 @@
 pub mod currency;
-pub mod errors;
+mod errors;
 pub mod game;
 pub mod lobby;
-pub mod transaction;
+pub mod players;
 
-use crate::errors::Result;
+pub use errors::*;
 
 /// Try to downcast any array of [u8] into an array of constant size
 pub(crate) fn len_to_const_arr<'a, const N: usize, T: 'a>(data: &'a [T]) -> Result<[T; N]>

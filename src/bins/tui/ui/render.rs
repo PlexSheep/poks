@@ -1,5 +1,6 @@
-use poks::game::evaluator;
+use poksen::game::evaluator;
 use ratatui::{
+    crossterm::style,
     prelude::*,
     widgets::{Block, Borders, Paragraph, Wrap},
 };
@@ -97,20 +98,23 @@ impl PoksTUI {
                     self.lobby().game.players()[idx].total_bet()
                 ))
                 .block(Block::new().borders(Borders::ALL).title({
-                    let mut pbuf = format!("Player {idx}");
-                    if idx == self.player_id {
-                        pbuf.push_str(" (You)");
-                    }
+                    let mut sbuf = format!(" Player {idx}");
                     if idx == self.lobby().game.big_blind_position() {
-                        pbuf.push_str(" (BB)");
+                        sbuf.push_str(" (BB)");
                     }
                     if idx == self.lobby().game.small_blind_position() {
-                        pbuf.push_str(" (SB)");
+                        sbuf.push_str(" (SB)");
                     }
                     if idx == self.lobby().game.dealer_position() {
-                        pbuf.push_str(" (D)");
+                        sbuf.push_str(" (D)");
                     }
-                    pbuf
+                    sbuf.push(' ');
+                    let mut title = Line::raw(sbuf).centered();
+                    if idx == self.player_id {
+                        title = title.fg(Color::Blue);
+                    }
+
+                    title
                 }))
                 .wrap(Wrap { trim: false }),
                 *layout,

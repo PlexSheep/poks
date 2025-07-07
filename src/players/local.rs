@@ -1,8 +1,8 @@
 use std::sync::{Arc, RwLock};
 
-use poks::errors::Result;
-use poks::game::{Action, Game};
-use poks::{lobby::PlayerBasicFields, player_impl};
+use crate::Result;
+use crate::game::{Action, Game};
+use crate::{player_impl, players::PlayerBasicFields};
 
 pub type ActionAccessor = Arc<RwLock<Option<Action>>>;
 
