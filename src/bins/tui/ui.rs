@@ -39,7 +39,7 @@ impl PoksTUI {
         let player_action_field = player.action_field_reference();
         worldb.add_player(player).unwrap();
 
-        for _ in 1..4 {
+        for _ in 1..8 {
             worldb
                 .add_player(Box::new(PlayerCPU::default()))
                 .expect("could not add cpu player");

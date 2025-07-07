@@ -86,13 +86,13 @@ impl PoksTUI {
         let players = self.lobby().players();
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Min(5); players.len()])
+            .constraints(vec![Constraint::Length(4); players.len()])
             .split(area);
 
         for (idx, (player, layout)) in players.iter().zip(layout.iter()).enumerate() {
             frame.render_widget(
                 Paragraph::new(format!(
-                    "\n  Currency: {}\n  Total Bet: {}",
+                    "  Currency: {}\n  Total Bet: {}",
                     player.currency(),
                     self.lobby().game.players()[idx].total_bet()
                 ))
