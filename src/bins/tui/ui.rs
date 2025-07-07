@@ -4,7 +4,7 @@ use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use poks::{
     CU,
-    game::{Action, PlayerID},
+    game::{Action, PlayerID, evaluator, show_cards, show_eval_cards},
     player::PlayerCPU,
     world::World,
 };
@@ -60,9 +60,7 @@ impl PoksTUI {
     pub fn update(&mut self) -> Result<()> {
         self.frame += 1;
         if self.world().game.is_finished() {
-            let winner = self.world.game.winner().expect("no winner despite win");
-            self.message = Some("Game finished. Press F6 for a new game.".to_string());
-            self.start_new_game();
+            self.message = Some("Game finished. Press F6 or Space for a new game.".to_string());
         } else {
             self.world.tick_game()?;
         }
@@ -82,7 +80,9 @@ impl PoksTUI {
                     info!("should exit");
                     self.should_exit = true
                 }
-                KeyCode::F(6) if self.world().game.is_finished() => self.start_new_game(),
+                KeyCode::F(6) | KeyCode::Char(' ') if self.world().game.is_finished() => {
+                    self.start_new_game()
+                }
                 KeyCode::F(1) => PlayerLocal::set_action(&self.player_af, Action::Fold),
                 // TODO: call needs calculation of diff
                 KeyCode::F(2) => {
@@ -154,14 +154,25 @@ impl PoksTUI {
 
     fn gamedata(&self) -> String {
         let game = &self.world().game;
-        format!(
-            "Phase: {} | Turn of Player: {} | You are Player: {} | Pot: {} | Currency: {}€",
-            game.phase(),
+        let player = &self.world.players()[self.player_id];
+        let mut buf = format!(
+            "Turn of Player: {:01} | You are Player: {:01} | Pot: {} | Currency: {}",
             game.turn(),
             0,
             game.pot(),
-            self.world.players()[0].currency()
-        )
+            player.currency(),
+        );
+
+        if player.hand().is_some() && game.community_cards().len() >= 3 {
+            let combined = game.hand_plus_table(self.player_id);
+
+            let eval = evaluator()
+                .evaluate_five(&*combined)
+                .expect("could not evaluate player hand + community cards");
+            buf.push_str(&format!(" | Evaluation: {eval}"));
+        }
+
+        buf
     }
 
     fn render_world(&self, area: Rect, frame: &mut Frame<'_>) {
