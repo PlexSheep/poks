@@ -2,9 +2,11 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use tracing::trace;
 
-use crate::{currency::Currency, game::cards::Cards, players::PlayerBehavior};
-
-pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
+use crate::{
+    currency::Currency,
+    game::cards::Cards,
+    players::{BehaveBox, PlayerBehavior},
+};
 
 #[derive(Debug, Clone)]
 pub struct Seat {

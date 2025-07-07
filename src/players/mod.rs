@@ -16,6 +16,7 @@ use crate::game::cards::{Card, Cards, show_cards};
 use crate::lobby::Seat;
 
 pub type PlayerID = usize;
+pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub struct Player {
