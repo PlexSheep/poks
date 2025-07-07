@@ -140,7 +140,7 @@ impl Display for Winner {
             match self {
                 Self::KnownCards(pot, pid, eval, cards) => {
                     format!(
-                        "Player {pid} won {pot} with {eval}:\n{}.",
+                        "Player {pid} won {pot} with {eval}:\n  {}",
                         show_eval_cards(eval.classify(), cards)
                     )
                 }
