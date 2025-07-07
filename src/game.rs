@@ -306,6 +306,7 @@ impl Game {
         }
     }
 
+    // BUG: this does not correctly do the betting rounds!
     pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
         let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
         if remaining_players == 1 {

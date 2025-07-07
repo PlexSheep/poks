@@ -1,3 +1,4 @@
+use rand::prelude::*;
 use std::fmt::Debug;
 
 use crate::currency::Currency;
@@ -71,18 +72,23 @@ player_impl!(
     PlayerCPU,
     base,
     fn act(&mut self, game: &Game) -> Result<Option<Action>> {
-        let mut a = rand::random();
-        a = match a {
-            Action::Call(bet) if bet == CU!(0) => game.action_call(),
-            Action::Raise(bet) => {
-                if self.base.currency < bet {
-                    game.action_call()
-                } else {
-                    a
-                }
-            }
-            a => a,
+        let mut rng = rand::rngs::OsRng;
+        let disc: u8 = rng.gen_range(0..=100);
+        let mut a = match disc {
+            0..10 => Action::Fold,
+            10..70 => game.action_call(),
+            70..99 => Action::Raise(CU!(10)),
+            99 => Action::Raise(CU!(100)),
+            100 => Action::AllIn(*self.currency()),
+            _ => unreachable!(),
         };
+
+        if let Action::Raise(bet) = a {
+            if bet >= *self.currency() {
+                a = Action::Fold;
+            }
+        }
+
         Ok(Some(a))
     }
 );

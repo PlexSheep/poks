@@ -4,7 +4,6 @@ use std::{
 };
 
 use poker::Card;
-use rand::{distributions::Standard, prelude::Distribution};
 
 use crate::{
     CU,
@@ -50,19 +49,6 @@ impl Display for Action {
                 Action::AllIn(bet) => format!("goes all in! ({bet})"),
             }
         )
-    }
-}
-
-impl Distribution<Action> for Standard {
-    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Action {
-        let disc: u8 = rng.gen_range(0..=70);
-        match disc {
-            0 => Action::Fold,
-            1..70 => Action::check(),
-            70..100 => Action::Raise(CU!(10)),
-            100 => Action::Raise(CU!(100)),
-            _ => unreachable!(),
-        }
     }
 }
 
