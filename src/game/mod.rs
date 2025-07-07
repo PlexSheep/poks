@@ -1,54 +1,31 @@
-use std::fmt::{Debug, Display};
-use std::sync::OnceLock;
+use std::fmt::Debug;
 
-use poker::evaluate::FiveCardHandClass;
-use poker::{Card, Eval, Evaluator, FiveCard, Rank, Suit};
 use rand::prelude::*;
-use tracing::{debug, info, trace};
+use tracing::trace;
 
+mod action;
+pub mod cards;
+pub mod evaluation;
+mod phase;
+mod state;
+mod winner;
+
+pub use action::*;
+use cards::*;
+use evaluation::*;
+pub use phase::*;
+pub use state::*;
+pub use winner::*;
+
+use crate::PoksError;
 use crate::currency::Currency;
-use crate::errors::PoksError;
 use crate::lobby::Seat;
-use crate::players::PlayerState;
+use crate::players::{Player, PlayerID, PlayerState};
 use crate::{CU, Result, err_int};
 
-mod impls; // additional trait impls
-
-pub type PlayerID = usize;
-pub type Cards<const N: usize> = [Card; N];
 pub type GlogItem = (Option<PlayerID>, String);
 pub type RNG = rand::rngs::StdRng;
 pub type Seed = <RNG as rand::SeedableRng>::Seed;
-
-pub static EVALUATOR: OnceLock<Evaluator> = OnceLock::new();
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct CardsDynamic {
-    inner: Vec<Card>,
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub enum Phase {
-    #[default]
-    Preflop,
-    Flop,
-    Turn,
-    River,
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Winner {
-    UnknownCards(Currency, PlayerID),
-    KnownCards(Currency, PlayerID, Eval<FiveCard>, Cards<7>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Player {
-    state: PlayerState,
-    total_bet: Currency,
-    round_bet: Currency,
-    seat: Seat,
-}
 
 #[derive(Debug, Clone)]
 pub struct Game {
@@ -63,26 +40,8 @@ pub struct Game {
     small_blind: Currency,
     big_blind: Currency,
     game_log: Vec<GlogItem>,
+    #[allow(unused)]
     seed: Seed,
-    rng: RNG,
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Action {
-    Fold,
-    Call(Currency),
-    Raise(Currency),
-    AllIn(Currency),
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-#[non_exhaustive]
-pub enum GameState {
-    #[default]
-    RaiseAllowed,
-    RaiseDisallowed,
-    Pause,
-    Finished,
 }
 
 // helper macros
@@ -154,7 +113,6 @@ impl Game {
             big_blind: CU!(1),
             dealer: dealer_pos,
             game_log: Vec::with_capacity(32),
-            rng,
             seed,
         };
 
@@ -261,7 +219,7 @@ impl Game {
         hand_plus_table
     }
 
-    fn showdown(&mut self) -> Result<()> {
+    fn showdown(&mut self) {
         let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
         for (pid, player) in self.players.iter().enumerate() {
             if player.state != PlayerState::Playing {
@@ -288,8 +246,6 @@ impl Game {
         }
         let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
-
-        Ok(())
     }
 
     fn next_turn(&mut self) {
@@ -477,275 +433,5 @@ impl Game {
 
     pub fn dealer_position(&self) -> PlayerID {
         self.dealer
-    }
-}
-
-impl Player {
-    #[must_use]
-    #[inline]
-    pub fn show_hand(&self) -> String {
-        show_cards(&self.hand())
-    }
-
-    pub fn new(hand: Cards<2>, lobby_seat: Seat) -> Self {
-        let mut p = Self {
-            state: Default::default(),
-            total_bet: Default::default(),
-            round_bet: Default::default(),
-            seat: lobby_seat,
-        };
-        p.set_hand(hand);
-        p
-    }
-
-    #[inline]
-    pub fn set_hand(&mut self, hand: Cards<2>) {
-        self.seat.behavior_mut().set_hand(hand);
-    }
-
-    #[inline]
-    pub fn hand(&self) -> [Card; 2] {
-        self.seat
-            .behavior()
-            .hand()
-            .expect("hand of player was empty")
-    }
-
-    #[inline]
-    pub fn state(&self) -> PlayerState {
-        self.state
-    }
-
-    #[inline]
-    pub fn total_bet(&self) -> Currency {
-        self.total_bet + self.round_bet
-    }
-
-    #[inline]
-    pub fn round_bet(&self) -> Currency {
-        self.round_bet
-    }
-
-    #[inline]
-    pub fn currency(&self) -> Currency {
-        *self.seat.behavior().currency()
-    }
-}
-
-impl GameState {
-    #[inline]
-    #[must_use]
-    pub fn is_ongoing(&self) -> bool {
-        match self {
-            GameState::RaiseAllowed | GameState::RaiseDisallowed => true,
-            GameState::Pause | GameState::Finished => false,
-        }
-    }
-}
-
-impl Action {
-    #[inline]
-    pub fn check() -> Self {
-        Self::Call(CU!(0))
-    }
-}
-
-impl Winner {
-    pub fn payout(&self, game: &Game) -> Result<()> {
-        info!("Payout!");
-        let player = &game.players[self.pid()];
-        let old = player.currency();
-        let winnings = game.pot();
-        assert_ne!(winnings, CU!(0));
-        *player.seat.behavior_mut().currency_mut() += game.pot();
-        assert_eq!(old + winnings, player.currency());
-        debug!("After Payout? {}", player.currency());
-        Ok(())
-    }
-
-    pub fn pid(&self) -> PlayerID {
-        match self {
-            Winner::UnknownCards(_, pid) => *pid,
-            Winner::KnownCards(_, pid, ..) => *pid,
-        }
-    }
-}
-
-pub fn show_cards(cards: &[impl Display]) -> String {
-    let mut buf = String::new();
-    for card in cards.iter() {
-        buf.push_str(&card.to_string());
-    }
-    buf
-}
-
-#[inline]
-pub fn evaluator() -> &'static Evaluator {
-    EVALUATOR.get_or_init(Evaluator::new)
-}
-
-pub fn show_eval_cards(cls: FiveCardHandClass, cards: &Cards<7>) -> String {
-    assert!(cards.is_sorted());
-
-    // HACK: These macros can likely be implemented with functions
-    macro_rules! scards {
-        ($collection:expr) => {{
-            $collection.sort();
-            $collection.reverse();
-            $collection.truncate(5);
-            debug_assert!($collection.len() <= 5); // BUG: this sometimes fails
-            debug_assert!($collection.len() >= 1);
-            $collection
-        }};
-    }
-    macro_rules! filter {
-        ($cards:tt, $filter:expr) => {{
-            let mut _v: Vec<&Card> = $cards.into_iter().rev().filter($filter).collect();
-            _v
-        }};
-    }
-    macro_rules! fcards {
-        ($filter:expr) => {{
-            let mut _filter = filter!(cards, $filter);
-            scards!(_filter)
-        }};
-    }
-    macro_rules! flush {
-        ($cards:tt) => {{
-            let mut v: [Vec<&Card>; 4] = [
-                filter!($cards, |c| c.suit() == Suit::Clubs),
-                filter!($cards, |c| c.suit() == Suit::Hearts),
-                filter!($cards, |c| c.suit() == Suit::Spades),
-                filter!($cards, |c| c.suit() == Suit::Diamonds),
-            ];
-            v.sort_by_key(|b| std::cmp::Reverse(b.len()));
-            let longest = &mut v[0];
-            longest.truncate(5);
-            debug_assert_eq!(longest.len(), 5);
-            longest.clone()
-        }};
-    }
-    // PERF: This can likely be implemented more efficiently
-    macro_rules! straight {
-        ($cards:tt, $rank:tt) => {{
-            let mut v: Vec<&Card> = Vec::with_capacity(5);
-            let mut ranks = [
-                Rank::Two,
-                Rank::Three,
-                Rank::Four,
-                Rank::Five,
-                Rank::Six,
-                Rank::Seven,
-                Rank::Eight,
-                Rank::Nine,
-                Rank::Ten,
-                Rank::Jack,
-                Rank::Queen,
-                Rank::King,
-                Rank::Ace,
-            ];
-            ranks.reverse();
-            let mut nr: usize = ranks.iter().position(|r| *r == $rank).unwrap();
-            let mut next_rank = $rank;
-            for _ in 0..5 {
-                v.push(
-                    cards
-                        .iter()
-                        .filter(|c| c.rank() == next_rank)
-                        .collect::<Vec<_>>()[0],
-                );
-                nr = (nr + 1) % ranks.len();
-                next_rank = ranks[nr];
-            }
-            v.truncate(5);
-            debug_assert!(v.len() <= 5);
-            v.sort();
-            v.reverse();
-            v
-        }};
-    }
-    let cards: Vec<&Card> = match cls {
-        FiveCardHandClass::HighCard { .. } => vec![&cards[6]],
-        FiveCardHandClass::Pair { rank } => fcards!(|c| c.rank() == rank),
-        FiveCardHandClass::TwoPair {
-            high_rank,
-            low_rank,
-        } => fcards!(|c| c.rank() == high_rank || c.rank() == low_rank),
-        FiveCardHandClass::ThreeOfAKind { rank } => fcards!(|c| c.rank() == rank),
-        FiveCardHandClass::Straight { rank } => {
-            scards!(straight!(cards, rank))
-        }
-        FiveCardHandClass::Flush { .. } => scards!(flush!(cards)),
-        FiveCardHandClass::FullHouse { trips, pair } => {
-            // BUG: sometimes, an assert here fails
-            fcards!(|c| c.rank() == pair || c.rank() == trips)
-        }
-        FiveCardHandClass::FourOfAKind { rank } => fcards!(|c| c.rank() == rank),
-        #[allow(unused_variables)] // false positive
-        FiveCardHandClass::StraightFlush { rank } => {
-            let f: Vec<&Card> = flush!(cards);
-            let mut s: Vec<&Card> = straight!(f, rank);
-            scards!(s)
-        }
-    };
-    show_cards(&cards)
-}
-
-#[cfg(test)]
-mod test {
-    use poker::{Card, cards};
-
-    use crate::{
-        game::{evaluator, show_eval_cards},
-        len_to_const_arr,
-    };
-
-    #[test]
-    fn test_show_eval_cards() {
-        let r: Vec<(Vec<_>, &str)> = vec![
-            (cards!("Th 2c 3c 4c 5c 7h 8h").collect(), "[ T♥ ]"), // high card
-            (cards!("Th Tc 3c 4c 5c 7h 8h").collect(), "[ T♥ ][ T♣ ]"), // pair
-            (
-                cards!("Th Tc 3c 3h 5c 7h 8h").collect(),
-                "[ T♥ ][ T♣ ][ 3♣ ][ 3♥ ]",
-            ), // two pair
-            (
-                cards!("Th Tc Td 5c 6h 7h 8h").collect(),
-                "[ T♥ ][ T♣ ][ T♦ ]",
-            ), // set
-            (
-                cards!("Th 3c 4c 5c 6h 7h 8h").collect(),
-                "[ 8♥ ][ 7♥ ][ 6♥ ][ 5♣ ][ 4♣ ]",
-            ), // straight
-            (
-                cards!("Ah 3c 4c 2c 5h 7h 8h").collect(),
-                "[ A♥ ][ 5♥ ][ 4♣ ][ 3♣ ][ 2♣ ]",
-            ), // straight that wraps around
-            (
-                cards!("Th 3h 4h 5c 6h 7h 8h").collect(),
-                "[ T♥ ][ 8♥ ][ 7♥ ][ 6♥ ][ 4♥ ]",
-            ), // flush
-            (
-                cards!("Th Tc Td 5c 5h 7h 8h").collect(),
-                "[ T♥ ][ T♣ ][ T♦ ][ 5♣ ][ 5♥ ]",
-            ), // full house
-            (
-                cards!("Th Tc Td Ts 6h 7h 8h").collect(),
-                "[ T♥ ][ T♣ ][ T♦ ][ T♠ ]",
-            ), // quads
-            (
-                cards!("9h 3c 4h 5h 6h 7h 8h").collect(),
-                "[ 9♥ ][ 8♥ ][ 7♥ ][ 6♥ ][ 5♥ ]",
-            ), // straight flush
-        ];
-        for (cards, show) in r {
-            let mut cards: Vec<Card> = cards.into_iter().map(|a| a.unwrap()).collect();
-            cards.sort();
-            let cards = len_to_const_arr(&cards).unwrap();
-            assert_eq!(
-                show_eval_cards(evaluator().evaluate_five(cards).unwrap().classify(), &cards),
-                show
-            );
-        }
     }
 }
