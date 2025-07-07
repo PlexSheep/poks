@@ -368,7 +368,7 @@ impl Game {
                     });
                 }
                 if self.state != GameState::RaiseDisallowed {
-                    todo!("No betting allowed, just calling")
+                    return Err(PoksError::RaiseNotAllowed);
                 }
                 current_player!(self).state = PlayerState::AllIn;
                 current_player!(self).round_bet += currency;
