@@ -1,10 +1,13 @@
 use ntest::timeout;
-use poks::{player::PlayerCPU, world::World};
+use poks::{CU, player::PlayerCPU, world::World};
 
 fn get_world() -> World {
     let mut wb = World::builder();
     for _ in 0..8 {
         wb.add_player(Box::new(PlayerCPU::default())).unwrap();
+    }
+    for player in wb.players.iter_mut() {
+        player.set_currency(CU!(5000));
     }
     wb.build().unwrap()
 }
