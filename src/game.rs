@@ -480,6 +480,10 @@ impl Game {
     pub fn small_blind(&self) -> Currency {
         self.small_blind
     }
+
+    pub fn dealer_position(&self) -> PlayerID {
+        self.dealer
+    }
 }
 
 impl Player {

@@ -67,7 +67,7 @@ impl PoksTUI {
 
     pub(crate) fn update(&mut self) -> Result<()> {
         self.frame += 1;
-        if self.world().game.is_finished() {
+        if self.lobby().game.is_finished() {
             self.message = Some("Game finished. Press F6 or Space for a new game.".to_string());
         } else {
             self.world.tick_game()?;
@@ -106,19 +106,19 @@ impl PoksTUI {
                     self.should_exit = true
                 }
                 KeyCode::F(6) | KeyCode::Char(' ') | KeyCode::Enter
-                    if self.world().game.is_finished() =>
+                    if self.lobby().game.is_finished() =>
                 {
                     self.start_new_game()
                 }
                 KeyCode::F(1) => PlayerLocal::set_action(&self.player_af, Action::Fold),
                 // TODO: call needs calculation of diff
                 KeyCode::F(2) => {
-                    PlayerLocal::set_action(&self.player_af, self.world().game.action_call())
+                    PlayerLocal::set_action(&self.player_af, self.lobby().game.action_call())
                 }
                 KeyCode::F(3) => self.set_input_mode(InputMode::Bet),
                 KeyCode::F(4) => PlayerLocal::set_action(
                     &self.player_af,
-                    Action::AllIn(*self.world().players()[self.player_id].currency()),
+                    Action::AllIn(*self.lobby().players()[self.player_id].currency()),
                 ),
                 _ => (),
             }
@@ -177,7 +177,7 @@ impl PoksTUI {
         Ok(())
     }
 
-    pub(crate) fn world(&self) -> &Lobby {
+    pub(crate) fn lobby(&self) -> &Lobby {
         &self.world
     }
 

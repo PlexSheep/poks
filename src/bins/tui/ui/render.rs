@@ -60,7 +60,7 @@ impl PoksTUI {
     }
 
     fn gamedata(&self) -> String {
-        let game = &self.world().game;
+        let game = &self.lobby().game;
         let player = &self.world.players()[self.player_id];
         let mut buf = format!(
             "Turn of Player: {:01} | You are Player: {:01} | Pot: {} | Currency: {}",
@@ -83,7 +83,7 @@ impl PoksTUI {
     }
 
     fn render_players(&self, area: Rect, frame: &mut Frame<'_>) {
-        let players = self.world().players();
+        let players = self.lobby().players();
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Min(5); players.len()])
@@ -94,12 +94,21 @@ impl PoksTUI {
                 Paragraph::new(format!(
                     "\n  Currency: {}\n  Total Bet: {}",
                     player.currency(),
-                    self.world().game.players()[idx].total_bet()
+                    self.lobby().game.players()[idx].total_bet()
                 ))
                 .block(Block::new().borders(Borders::ALL).title({
                     let mut pbuf = format!("Player {idx}");
                     if idx == self.player_id {
                         pbuf.push_str(" (You)");
+                    }
+                    if idx == self.lobby().game.big_blind_position() {
+                        pbuf.push_str(" (BB)");
+                    }
+                    if idx == self.lobby().game.small_blind_position() {
+                        pbuf.push_str(" (SB)");
+                    }
+                    if idx == self.lobby().game.dealer_position() {
+                        pbuf.push_str(" (D)");
                     }
                     pbuf
                 }))
@@ -110,7 +119,7 @@ impl PoksTUI {
     }
 
     fn render_world(&self, area: Rect, frame: &mut Frame<'_>) {
-        let world = self.world();
+        let world = self.lobby();
         debug_assert!(!world.players().is_empty());
 
         let you = &world.game.players()[self.player_id];
