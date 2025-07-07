@@ -3,13 +3,14 @@ use std::sync::OnceLock;
 
 use poker::evaluate::FiveCardHandClass;
 use poker::{Card, Eval, Evaluator, FiveCard, Rank, Suit};
+use rand::prelude::*;
 use tracing::{debug, info};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
+use crate::lobby::AnyAccount;
 use crate::player::PlayerState;
 use crate::transaction::Transaction;
-use crate::world::AnyAccount;
 use crate::{CU, Result, err_int};
 
 mod impls; // additional trait impls
@@ -17,6 +18,7 @@ mod impls; // additional trait impls
 pub type PlayerID = usize;
 pub type Cards<const N: usize> = [Card; N];
 pub type GlogItem = (Option<PlayerID>, String);
+pub type RNG = rand::rngs::StdRng;
 
 pub static EVALUATOR: OnceLock<Evaluator> = OnceLock::new();
 
@@ -48,7 +50,7 @@ pub struct Player {
     hand: Cards<2>,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Game {
     phase: Phase,
     turn: PlayerID,
@@ -61,6 +63,8 @@ pub struct Game {
     small_blind: Currency,
     big_blind: Currency,
     game_log: Vec<GlogItem>,
+    seed: <RNG as rand::SeedableRng>::Seed,
+    rng: RNG,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -114,6 +118,8 @@ impl Game {
             let hand: Cards<2> = [deck.pop().unwrap(), deck.pop().unwrap()];
             players.push(Player::new(hand));
         }
+        let seed = <RNG as rand::SeedableRng>::Seed::default();
+        let rng = RNG::from_seed(seed);
         let mut game = Game {
             turn: 0,
             phase: Phase::default(),
@@ -126,6 +132,8 @@ impl Game {
             big_blind: CU!(1),
             dealer: dealer_pos,
             game_log: Vec::with_capacity(32),
+            rng,
+            seed,
         };
 
         game.post_blinds(accounts)?;
