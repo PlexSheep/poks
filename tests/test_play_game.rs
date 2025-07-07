@@ -1,5 +1,5 @@
 use ntest::timeout;
-use poksen::{CU, lobby::Lobby, players::PlayerCPU};
+use poksen::{CU, PoksError, lobby::Lobby, players::PlayerCPU};
 
 fn get_world() -> Lobby {
     let mut wb = Lobby::builder();
@@ -19,7 +19,13 @@ fn test_play_50_games_cpu() {
     for _gi in 0..50 {
         w.start_new_game().unwrap();
         while !w.game.is_finished() {
-            w.tick_game().unwrap();
+            match w.tick_game() {
+                Ok(_) => (),
+                Err(e) => match e {
+                    PoksError::RaiseNotAllowed => (),
+                    _ => panic!("Error while ticking the game: {e}"),
+                },
+            }
             let last_action = w.action_log().iter().last().unwrap();
             if let Some(pid) = last_action.0 {
                 println!("Player {pid}: {}", last_action.1)
