@@ -44,13 +44,6 @@ pub struct Game {
     seed: Seed,
 }
 
-// helper macros
-macro_rules! current_player {
-    ($self:tt) => {
-        $self.players[$self.turn]
-    };
-}
-
 macro_rules! glog {
     ($self:tt, None, $stuff:expr) => {
         $self.game_log.push((None, $stuff))
@@ -272,10 +265,12 @@ impl Game {
         }
 
         let round_bet = self.highest_bet_of_round();
-        let player = &current_player!(self);
+        let gstate = self.state;
+        let player = self.current_player_mut();
 
         if !player.state.is_playing() {
             self.next_turn();
+            return Ok(());
         }
 
         let action = match action {
@@ -283,51 +278,47 @@ impl Game {
             None => return Ok(()), // come back with an action
         };
 
-        if !current_player!(self).state.is_playing() {
+        if !player.state.is_playing() {
             return Ok(()); // ignore
-            // return Err(PoksError::player_not_playing(
-            //     self.turn,
-            //     format!("{:?}", current_player!(self).state),
-            // ));
         }
 
-        if current_player!(self).state == PlayerState::AllIn {
+        if player.state == PlayerState::AllIn {
             self.next_turn();
             return Ok(());
         }
         match action {
             Action::Fold => {
-                current_player!(self).state = PlayerState::Folded;
+                player.state = PlayerState::Folded;
             }
             Action::Call(currency) => {
-                if round_bet < current_player!(self).round_bet {
+                if round_bet < player.round_bet {
                     return Err(PoksError::InvalidCall);
                 }
-                let diff = round_bet - current_player!(self).round_bet;
+                let diff = round_bet - player.round_bet;
                 if diff != currency {
                     return Err(PoksError::call_mismatch(diff, currency));
                 }
                 if currency != CU!(0) {
-                    current_player!(self).round_bet += currency;
+                    player.round_bet += currency;
                 }
             }
             Action::Raise(currency) => {
-                if self.state == GameState::RaiseDisallowed {
+                if gstate == GameState::RaiseDisallowed {
                     return Err(PoksError::RaiseNotAllowed);
                 }
-                current_player!(self).round_bet += currency;
+                player.round_bet += currency;
             }
             Action::AllIn(currency) => {
-                if current_player!(self).state == PlayerState::AllIn {
+                if player.state == PlayerState::AllIn {
                     return Err(PoksError::PlayerAlreadyAllIn {
                         player_id: self.turn,
                     });
                 }
-                if self.state != GameState::RaiseDisallowed {
+                if gstate != GameState::RaiseDisallowed {
                     return Err(PoksError::RaiseNotAllowed);
                 }
-                current_player!(self).state = PlayerState::AllIn;
-                current_player!(self).round_bet += currency;
+                player.state = PlayerState::AllIn;
+                player.round_bet += currency;
             }
         }
 
@@ -433,5 +424,13 @@ impl Game {
 
     pub fn dealer_position(&self) -> PlayerID {
         self.dealer
+    }
+
+    pub fn current_player(&self) -> &Player {
+        &self.players[self.turn]
+    }
+
+    pub fn current_player_mut(&mut self) -> &mut Player {
+        &mut self.players[self.turn]
     }
 }
