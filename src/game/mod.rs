@@ -8,9 +8,8 @@ use tracing::{debug, info, trace};
 
 use crate::currency::Currency;
 use crate::errors::PoksError;
-use crate::lobby::PlayerState;
 use crate::lobby::Seat;
-use crate::transaction::Transaction;
+use crate::players::PlayerState;
 use crate::{CU, Result, err_int};
 
 mod impls; // additional trait impls
@@ -545,14 +544,6 @@ impl GameState {
 }
 
 impl Action {
-    pub fn prepare_transaction(&self) -> Option<Transaction> {
-        match self {
-            Action::Call(currency) | Action::Raise(currency) | Action::AllIn(currency) => {
-                Some(Transaction::new(*currency))
-            }
-            Action::Fold => None,
-        }
-    }
     #[inline]
     pub fn check() -> Self {
         Self::Call(CU!(0))

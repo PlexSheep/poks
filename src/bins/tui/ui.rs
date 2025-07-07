@@ -1,15 +1,13 @@
 use color_eyre::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use poks::{
+use poksen::{
     CU,
     currency::Currency,
     game::{Action, PlayerID},
     lobby::Lobby,
-    lobby::PlayerCPU,
+    players::{PlayerCPU, PlayerLocal, local::ActionAccessor},
 };
 use tracing::{debug, info, trace};
-
-use crate::player::local::{ActionAccessor, PlayerLocal};
 
 mod render;
 

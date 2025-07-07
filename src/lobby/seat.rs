@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use tracing::trace;
 
-use crate::{currency::Currency, game::Cards, lobby::PlayerBehavior};
+use crate::{currency::Currency, game::Cards, players::PlayerBehavior};
 
 pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
 

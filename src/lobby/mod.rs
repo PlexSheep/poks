@@ -5,11 +5,8 @@ use tracing::trace;
 use crate::Result;
 use crate::errors::PoksError;
 use crate::game::{Game, PlayerID};
-use crate::transaction::Transaction;
 
-mod behavior;
 mod seat;
-pub use behavior::*;
 pub use seat::*;
 
 pub const ACTION_LOG_SIZE: usize = 2000;
@@ -81,15 +78,10 @@ impl Lobby {
         let pid = self.game.turn();
         let player = &mut self.players[pid];
         let action = player.behavior_mut().act(&self.game)?;
-        let possible_transaction = action.map(|a| a.prepare_transaction());
         let res = match self.game.process_action(action) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         };
-        if let Some(Some(transaction)) = possible_transaction {
-            // NOTE: adding is done by the game functionalities
-            transaction.finish(player.behavior_mut().currency_mut(), Transaction::garbage())?;
-        }
         self.update_action_log();
         res
     }
