@@ -64,8 +64,8 @@ pub enum PoksError {
     #[error("Transaction failed: {reason}")]
     TransactionError { reason: String },
 
-    #[error("Currency overflow in transaction")]
-    CurrencyOverflow,
+    #[error("Player does not have enough currency for a withdrawal")]
+    TooLittleCurrency,
 
     // World/Player Management Errors
     #[error("Player action timeout")]

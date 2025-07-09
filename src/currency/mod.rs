@@ -8,7 +8,6 @@ use std::{
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-#[must_use]
 pub struct Currency(i64);
 
 #[macro_export]
@@ -28,6 +27,7 @@ impl Currency {
     pub const ONE_CT: Currency = Currency(1);
     pub const ONE: Currency = Currency(100);
     pub const ZERO: Currency = Currency(0);
+    pub const NEGATIVE_SYMBOL: char = '-';
 
     #[inline]
     pub const fn new(credits: i64, cents: i64) -> Self {
@@ -123,7 +123,11 @@ impl Display for Currency {
         write!(
             f,
             "{}{}{}{:02}{}",
-            if self.is_negative() { "-" } else { "" },
+            if self.is_negative() {
+                Self::NEGATIVE_SYMBOL.to_string()
+            } else {
+                "".to_string()
+            },
             main_str,
             Self::DECIMAL_SEPARATOR,
             cents,

@@ -61,8 +61,24 @@ impl Seat {
         self.currency = cu;
     }
 
-    pub fn currency_mut(&mut self) -> &mut Currency {
+    fn currency_mut(&mut self) -> &mut Currency {
         &mut self.currency
+    }
+
+    #[inline]
+    pub fn add_currency(&mut self, cu: Currency) -> Result<()> {
+        *self.currency_mut() += cu;
+        Ok(())
+    }
+
+    #[inline]
+    pub fn withdraw_currency(&mut self, cu: Currency) -> Result<Currency> {
+        if self.currency() < cu {
+            Err(crate::PoksError::TooLittleCurrency)
+        } else {
+            *self.currency_mut() -= cu;
+            Ok(cu)
+        }
     }
 
     pub fn currency(&self) -> Currency {

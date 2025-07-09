@@ -94,8 +94,13 @@ impl Player {
     }
 
     #[inline]
-    pub fn currency_mut(&mut self) -> &mut Currency {
-        self.seat.currency_mut()
+    pub fn add_currency(&mut self, cu: Currency) -> Result<()> {
+        self.seat.add_currency(cu)
+    }
+
+    #[inline]
+    pub fn withdraw_currency(&mut self, cu: Currency) -> Result<Currency> {
+        self.seat.withdraw_currency(cu)
     }
 
     #[inline]
