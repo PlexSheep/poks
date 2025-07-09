@@ -153,6 +153,11 @@ impl PoksError {
     pub fn too_many_players(requested: usize, max: usize) -> Self {
         Self::TooManyPlayers { requested, max }
     }
+
+    pub fn raise_too_small(amount: Currency, needed: Currency) -> PoksError {
+        assert!(amount < needed);
+        Self::RaiseTooSmall(amount, needed)
+    }
 }
 
 // Helper trait for adding context to results
