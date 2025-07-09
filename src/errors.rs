@@ -35,12 +35,8 @@ pub enum PoksError {
     TooManyPlayers { requested: usize, max: usize },
 
     // Action/Betting Errors
-    #[error("Invalid action: cannot call when you're not under the round bet")]
-    InvalidCall,
-
-    // Action/Betting Errors
     #[error("Invalid call amount: expected {expected}, got {actual}")]
-    CallAmountMismatch {
+    BetAmountMismatch {
         expected: Currency,
         actual: Currency,
     },
@@ -101,6 +97,12 @@ pub enum PoksError {
 
     #[error("Configuration error: {field} - {reason}")]
     ConfigError { field: String, reason: String },
+
+    #[error("Game not ended but no active players remain")]
+    NoActivePlayers,
+
+    #[error("Player tried to raise by too small an amount: {0} < {1}")]
+    RaiseTooSmall(Currency, Currency),
 }
 
 mod macros {
@@ -146,10 +148,6 @@ impl PoksError {
         Self::CardEvaluationError {
             reason: reason.into(),
         }
-    }
-
-    pub fn call_mismatch(expected: Currency, actual: Currency) -> Self {
-        Self::CallAmountMismatch { expected, actual }
     }
 
     pub fn too_many_players(requested: usize, max: usize) -> Self {
