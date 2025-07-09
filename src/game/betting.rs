@@ -25,14 +25,14 @@ impl super::Game {
         let sb_pos = self.small_blind_position();
         let bb_pos = self.big_blind_position();
 
-        let sbp = &mut self.players[sb_pos];
-        *sbp.currency_mut() -= self.small_blind;
-        sbp.round_bet += self.small_blind;
+        let player = &mut self.players[sb_pos];
+        let delta = player.withdraw_currency(self.small_blind)?;
+        player.round_bet += delta;
         glogf!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
 
-        let bbp = &mut self.players[bb_pos];
-        *bbp.currency_mut() -= self.small_blind;
-        self.players[bb_pos].round_bet += self.big_blind;
+        let player = &mut self.players[bb_pos];
+        let delta = player.withdraw_currency(self.big_blind)?;
+        player.round_bet += delta;
         glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
         Ok(())

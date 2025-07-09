@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::evaluation::show_eval_cards;
 
-use tracing::{debug, info};
+use tracing::info;
 
 use super::Game;
 use super::cards::Cards;
@@ -20,11 +20,8 @@ impl Winner {
         info!("Payout!");
         let winnings = game.pot();
         let player = &mut game.players[self.pid()];
-        let old = player.currency();
         assert_ne!(winnings, CU!(0));
-        *player.currency_mut() += winnings;
-        assert_eq!(old + winnings, player.currency());
-        debug!("After Payout? {}", player.currency());
+        player.add_currency(winnings)?;
         Ok(())
     }
 

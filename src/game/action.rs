@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use tracing::error;
+
 use super::*;
 use crate::{CU, PoksError, currency::Currency};
 
@@ -24,6 +26,15 @@ impl super::Game {
     pub fn action_call(&self) -> Action {
         let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
         Action::Call(diff)
+    }
+
+    /// Helper: Get raise action (call + the amount you want to raise)
+    pub fn action_raise(&self, bet_over_call: Currency) -> Action {
+        let highest_bet = self.highest_bet_of_round();
+        let player = self.current_player();
+        let call_amount = highest_bet - player.round_bet;
+        let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
+        Action::Raise(call_amount + bet_over_call)
     }
 
     pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
@@ -94,23 +105,26 @@ impl super::Game {
                 } else if amount > player.currency() {
                     return Err(PoksError::insufficient_funds(amount, player.currency()));
                 } else {
-                    *player.round_bet_mut() += amount;
-                    *player.currency_mut() -= amount;
+                    let delta = player.withdraw_currency(amount)?;
+                    *player.round_bet_mut() += delta;
                 }
             }
             Action::Raise(amount) => {
                 let call_amount = highest_bet - player.round_bet;
-                let plus_call = amount - call_amount;
+                let plus_call: Currency = amount - call_amount;
 
                 if state == GameState::RaiseDisallowed {
                     return Err(PoksError::RaiseNotAllowed);
                 } else if amount > player.currency() {
                     return Err(PoksError::insufficient_funds(amount, player.currency()));
                 } else if plus_call < min_raise {
+                    error!(
+                        "Player tried to raise by an amount less than the call + min raise: amount: {amount}, call_amount: {call_amount}"
+                    );
                     return Err(crate::PoksError::RaiseTooSmall(amount, min_raise));
                 } else {
-                    *player.round_bet_mut() += amount;
-                    *player.currency_mut() -= amount;
+                    let delta = player.withdraw_currency(amount)?;
+                    *player.round_bet_mut() += delta;
                 }
             }
             Action::AllIn(amount) => {
@@ -121,8 +135,8 @@ impl super::Game {
                     });
                 } else {
                     player.state = PlayerState::AllIn;
-                    *player.round_bet_mut() += amount;
-                    *player.currency_mut() -= amount;
+                    let delta = player.withdraw_currency(amount)?;
+                    *player.round_bet_mut() += delta;
                 }
             }
         }
