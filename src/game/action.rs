@@ -106,7 +106,7 @@ impl super::Game {
                     return Err(PoksError::RaiseNotAllowed);
                 } else if amount > player.currency() {
                     return Err(PoksError::insufficient_funds(amount, player.currency()));
-                } else if plus_call > min_raise {
+                } else if plus_call < min_raise {
                     return Err(crate::PoksError::RaiseTooSmall(amount, min_raise));
                 } else {
                     *player.round_bet_mut() += amount;

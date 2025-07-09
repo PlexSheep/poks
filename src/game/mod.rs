@@ -27,6 +27,10 @@ use crate::{CU, Result};
 pub type RNG = rand::rngs::StdRng;
 pub type Seed = <RNG as rand::SeedableRng>::Seed;
 
+/// # Panics
+///
+/// Methods and associated functions of this struct will panic if you pass an invalid [`PlayerID`]
+/// as argument.
 #[derive(Debug, Clone)]
 pub struct Game {
     phase: Phase,
@@ -97,19 +101,23 @@ impl Game {
         Ok(game)
     }
 
+    #[inline]
     pub fn build(seats: &[Seat], dealer_pos: PlayerID) -> Result<Self> {
         let seed = Self::seed();
         Self::buid_with_seed(seats, dealer_pos, seed)
     }
 
+    #[inline]
     pub fn phase(&self) -> Phase {
         self.phase
     }
 
+    #[inline]
     pub fn phase_mut(&mut self) -> &mut Phase {
         &mut self.phase
     }
 
+    #[inline]
     pub fn set_phase(&mut self, phase: Phase) {
         for player in self.players.iter_mut() {
             player.total_bet += player.round_bet;
@@ -119,6 +127,7 @@ impl Game {
         glogf!(self, None, "Phase: {phase}");
     }
 
+    #[inline]
     pub fn is_finished(&self) -> bool {
         self.winner.is_some()
     }
@@ -129,10 +138,12 @@ impl Game {
         glog!(self, None, self.winner.unwrap().to_string())
     }
 
+    #[inline]
     pub fn winner(&self) -> Option<Winner> {
         self.winner
     }
 
+    #[inline]
     pub(crate) fn draw_card(&mut self) -> Card {
         self.deck.pop().unwrap()
     }
@@ -166,34 +177,42 @@ impl Game {
         buf
     }
 
+    #[inline]
     pub fn turn(&self) -> PlayerID {
         self.turn
     }
 
+    #[inline]
     pub fn players(&self) -> &[Player] {
         &self.players
     }
 
+    #[inline]
     pub fn community_cards(&self) -> &CardsDynamic {
         &self.community_cards
     }
 
+    #[inline]
     pub fn deck(&self) -> &CardsDynamic {
         &self.deck
     }
 
+    #[inline]
     pub fn state(&self) -> GameState {
         self.state
     }
 
+    #[inline]
     pub fn dealer_position(&self) -> PlayerID {
         self.dealer
     }
 
+    #[inline]
     pub fn current_player(&self) -> &Player {
         &self.players[self.turn]
     }
 
+    #[inline]
     pub fn current_player_mut(&mut self) -> &mut Player {
         &mut self.players[self.turn]
     }
@@ -201,5 +220,31 @@ impl Game {
     pub fn pot(&self) -> Currency {
         debug_assert!(!self.players.is_empty());
         self.players.iter().map(|p| p.total_bet + p.round_bet).sum()
+    }
+
+    pub fn next_player(&self, turn: PlayerID) -> Option<PlayerID> {
+        if self.players.len() < 2 {
+            None
+        } else {
+            Some(if turn > self.players.len() - 1 {
+                0
+            } else {
+                turn + 1
+            })
+        }
+    }
+
+    #[inline]
+    fn active_players(&self) -> impl Iterator<Item = &Player> {
+        self.players.iter().filter(|p| p.is_active())
+    }
+
+    pub fn next_active_player(&self, turn: PlayerID) -> Option<PlayerID> {
+        let active: usize = self.active_players().count();
+        if active < 2 {
+            None
+        } else {
+            Some((turn + 1) % active)
+        }
     }
 }

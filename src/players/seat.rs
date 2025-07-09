@@ -1,4 +1,9 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    any::Any as _,
+    cmp::Ordering,
+    ops::Deref,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 
 use tracing::trace;
 
@@ -67,7 +72,17 @@ impl Seat {
     pub fn act(&self, game: &crate::game::Game, player: &Player) -> Result<Option<Action>> {
         self.behavior_mut().act(game, player)
     }
+
+    fn behavior_typeid(&self) -> std::any::TypeId {
+        self.behavior().deref().deref().type_id()
+    }
 }
 
-unsafe impl Send for Seat {}
-unsafe impl Sync for Seat {}
+impl PartialEq for Seat {
+    fn eq(&self, other: &Self) -> bool {
+        self.currency().cmp(&other.currency()) == Ordering::Equal
+            && self.behavior_typeid().cmp(&other.behavior_typeid()) == Ordering::Equal
+    }
+}
+
+impl Eq for Seat {}
