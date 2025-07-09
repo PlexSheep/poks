@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
 use rand::prelude::*;
-use tracing::trace;
+use tracing::{debug, trace};
 
 mod action;
+mod betting; // this one has most of the actual game functionality
 pub mod cards;
 pub mod evaluation;
 mod glog;
@@ -101,12 +102,10 @@ impl Game {
         Self::buid_with_seed(seats, dealer_pos, seed)
     }
 
-    #[must_use]
     pub fn phase(&self) -> Phase {
         self.phase
     }
 
-    #[must_use]
     pub fn phase_mut(&mut self) -> &mut Phase {
         &mut self.phase
     }
@@ -120,19 +119,6 @@ impl Game {
         glogf!(self, None, "Phase: {phase}");
     }
 
-    #[must_use]
-    pub fn pot(&self) -> Currency {
-        debug_assert!(!self.players.is_empty());
-        self.players.iter().map(|p| p.total_bet + p.round_bet).sum()
-    }
-
-    #[must_use]
-    pub fn highest_bet_of_round(&self) -> Currency {
-        debug_assert!(!self.players.is_empty());
-        self.players.iter().map(|p| p.round_bet).max().unwrap()
-    }
-
-    #[must_use]
     pub fn is_finished(&self) -> bool {
         self.winner.is_some()
     }
@@ -143,12 +129,11 @@ impl Game {
         glog!(self, None, self.winner.unwrap().to_string())
     }
 
-    #[must_use]
     pub fn winner(&self) -> Option<Winner> {
         self.winner
     }
 
-    fn draw_card(&mut self) -> Card {
+    pub(crate) fn draw_card(&mut self) -> Card {
         self.deck.pop().unwrap()
     }
 
@@ -158,156 +143,12 @@ impl Game {
         self.community_cards.push(c);
     }
 
-    fn advance_phase(&mut self) {
-        match self.phase() {
-            Phase::Preflop => {
-                let _ = self.draw_card(); // burn card
-                for _ in 0..3 {
-                    self.add_table_card();
-                }
-                assert_eq!(self.community_cards.len(), 3);
-                self.set_phase(Phase::Flop);
-            }
-            Phase::Flop => {
-                let _ = self.draw_card(); // burn card
-                self.add_table_card();
-                assert_eq!(self.community_cards.len(), 4);
-                self.set_phase(Phase::Turn);
-            }
-            Phase::Turn => {
-                let _ = self.draw_card(); // burn card
-                self.add_table_card();
-                assert_eq!(self.community_cards.len(), 5);
-                self.set_phase(Phase::River);
-                self.showdown();
-            }
-            Phase::River => unreachable!(),
-        }
-    }
-
     pub fn hand_plus_table(&self, pid: PlayerID) -> CardsDynamic {
         let player = &self.players[pid];
         let mut hand_plus_table: CardsDynamic = player.hand().into();
         hand_plus_table.extend(self.community_cards.iter());
         hand_plus_table.sort();
         hand_plus_table
-    }
-
-    fn showdown(&mut self) {
-        let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
-        for (pid, player) in self.players.iter().enumerate() {
-            if player.state != PlayerState::Playing {
-                continue;
-            }
-            let mut hand_plus_table: CardsDynamic = player.hand().into();
-            hand_plus_table.extend(self.community_cards.iter());
-            hand_plus_table.sort();
-            // TODO: add better result type and return this as error
-            evals.push((
-                pid,
-                evaluator()
-                    .evaluate_five(&*hand_plus_table)
-                    .expect("could not evaluate"),
-                hand_plus_table
-                    .try_static()
-                    .expect("Hands plus table were not 7 cards"),
-            ));
-        }
-
-        evals.sort_by(|a, b| b.1.cmp(&a.1));
-        if evals[0] == evals[1] {
-            todo!("We have a draw!")
-        }
-        let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
-        self.set_winner(winner);
-    }
-
-    fn next_turn(&mut self) {
-        self.turn = (self.turn + 1) % self.players.len();
-        if self.turn == 0 {
-            self.advance_phase();
-        }
-    }
-
-    // BUG: this does not correctly do the betting rounds!
-    pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
-        let remaining_players = self.players.iter().filter(|p| p.state.is_playing()).count();
-        if remaining_players == 1 {
-            let winner_id = self
-                .players
-                .iter()
-                .enumerate()
-                .find(|(_, p)| p.state.is_playing())
-                .map(|(id, _)| id)
-                .ok_or_else(|| err_int!("No playing players found"))?;
-
-            self.set_winner(Winner::UnknownCards(self.pot(), winner_id));
-            return Ok(());
-        }
-
-        let round_bet = self.highest_bet_of_round();
-        let gstate = self.state;
-        let player = self.current_player_mut();
-
-        if !player.state.is_playing() {
-            self.next_turn();
-            return Ok(());
-        }
-
-        let action = match action {
-            Some(a) => a,
-            None => return Ok(()), // come back with an action
-        };
-
-        if !player.state.is_playing() {
-            return Ok(()); // ignore
-        }
-
-        if player.state == PlayerState::AllIn {
-            self.next_turn();
-            return Ok(());
-        }
-        match action {
-            Action::Fold => {
-                player.state = PlayerState::Folded;
-            }
-            Action::Call(currency) => {
-                if round_bet < player.round_bet {
-                    return Err(PoksError::InvalidCall);
-                }
-                let diff = round_bet - player.round_bet;
-                if diff != currency {
-                    return Err(PoksError::call_mismatch(diff, currency));
-                }
-                if currency != CU!(0) {
-                    player.round_bet += currency;
-                }
-            }
-            Action::Raise(currency) => {
-                if gstate == GameState::RaiseDisallowed {
-                    return Err(PoksError::RaiseNotAllowed);
-                }
-                player.round_bet += currency;
-            }
-            Action::AllIn(currency) => {
-                if player.state == PlayerState::AllIn {
-                    return Err(PoksError::PlayerAlreadyAllIn {
-                        player_id: self.turn,
-                    });
-                }
-                if gstate != GameState::RaiseDisallowed {
-                    return Err(PoksError::RaiseNotAllowed);
-                }
-                player.state = PlayerState::AllIn;
-                player.round_bet += currency;
-            }
-        }
-
-        glogf!(self, self.turn, "{action}");
-
-        self.next_turn();
-
-        Ok(())
     }
 
     pub fn show_table(&self) -> String {
@@ -345,54 +186,6 @@ impl Game {
         self.state
     }
 
-    pub fn action_call(&self) -> Action {
-        let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
-        Action::Call(diff)
-    }
-
-    pub fn small_blind_position(&self) -> PlayerID {
-        if self.players.len() == 2 {
-            // In heads-up, dealer posts small blind
-            self.dealer
-        } else {
-            (self.dealer + 1) % self.players.len()
-        }
-    }
-
-    pub fn big_blind_position(&self) -> PlayerID {
-        if self.players.len() == 2 {
-            // In heads-up, non-dealer posts big blind
-            (self.dealer + 1) % self.players.len()
-        } else {
-            (self.dealer + 2) % self.players.len()
-        }
-    }
-
-    fn post_blinds(&mut self) -> Result<()> {
-        let sb_pos = self.small_blind_position();
-        let bb_pos = self.big_blind_position();
-
-        let sbp = &mut self.players[sb_pos];
-        *sbp.currency_mut() -= self.small_blind;
-        sbp.round_bet += self.small_blind;
-        glogf!(self, sb_pos, "Posts the small blind ({})", self.small_blind);
-
-        let bbp = &mut self.players[bb_pos];
-        *bbp.currency_mut() -= self.small_blind;
-        self.players[bb_pos].round_bet += self.big_blind;
-        glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
-
-        Ok(())
-    }
-
-    pub fn big_blind(&self) -> Currency {
-        self.big_blind
-    }
-
-    pub fn small_blind(&self) -> Currency {
-        self.small_blind
-    }
-
     pub fn dealer_position(&self) -> PlayerID {
         self.dealer
     }
@@ -403,5 +196,10 @@ impl Game {
 
     pub fn current_player_mut(&mut self) -> &mut Player {
         &mut self.players[self.turn]
+    }
+
+    pub fn pot(&self) -> Currency {
+        debug_assert!(!self.players.is_empty());
+        self.players.iter().map(|p| p.total_bet + p.round_bet).sum()
     }
 }
