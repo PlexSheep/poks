@@ -26,7 +26,7 @@ use crate::{
 pub type PlayerID = usize;
 pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Player {
     pub state: PlayerState,
     pub total_bet: Currency,
@@ -137,5 +137,9 @@ impl Player {
 
     pub fn act(&self, game: &crate::game::Game) -> Result<Option<Action>> {
         self.seat.act(game, self)
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.state.is_playing()
     }
 }

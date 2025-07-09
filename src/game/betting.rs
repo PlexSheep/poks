@@ -55,7 +55,15 @@ impl super::Game {
     }
 
     pub(super) fn advance_turn(&mut self) -> Result<()> {
-        todo!()
+        if let Some(next_player) = self.next_active_player(self.turn) {
+            self.turn = next_player;
+            Ok(())
+        } else {
+            if !self.is_betting_complete() {
+                return Err(crate::PoksError::NoActivePlayers);
+            }
+            todo!("Honestly, no idea what this means if we get here");
+        }
     }
 
     pub(super) fn advance_phase(&mut self) -> Result<()> {
@@ -88,7 +96,34 @@ impl super::Game {
     }
 
     fn start_betting(&mut self) -> Result<()> {
-        todo!()
+        // PERF: this might return a paused player, but should cost just another processing round
+        let mut np_pos = (self.dealer_position() + 1) % self.players.len();
+        let active_players: Vec<&Player> = self.active_players().collect();
+
+        let mut guard = 0;
+        let mut next_player;
+        loop {
+            next_player = &self.players()[np_pos];
+            match active_players.iter().position(|p| **p == *next_player) {
+                Some(_) => break,
+                None => {
+                    np_pos = (np_pos + 1) % active_players.len();
+                }
+            }
+            if guard > active_players.len() {
+                panic!("Could not determine next player for betting round")
+            }
+            guard += 1;
+        }
+
+        self.turn = np_pos;
+        glogf!(
+            self,
+            None,
+            "New betting round starts with Player {}",
+            self.turn
+        );
+        Ok(())
     }
 
     fn showdown(&mut self) -> Result<()> {
@@ -120,8 +155,21 @@ impl super::Game {
         Ok(())
     }
 
-    pub(super) fn is_betting_complete(&self) -> bool {
-        todo!()
+    pub fn is_betting_complete(&self) -> bool {
+        let active_players: Vec<&Player> = self.active_players().collect();
+
+        if active_players.len() < 2 {
+            return true;
+        }
+
+        let highest_bet = self.highest_bet_of_round();
+
+        // All active players must have either:
+        // - Matched the current bet amount, OR
+        // - Gone all-in (and contributed what they could)
+        active_players
+            .iter()
+            .all(|&player| player.round_bet == highest_bet || player.state == PlayerState::AllIn)
     }
 }
 
