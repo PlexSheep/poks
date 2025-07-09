@@ -6,6 +6,7 @@ use tracing::trace;
 mod action;
 pub mod cards;
 pub mod evaluation;
+mod glog;
 mod phase;
 mod state;
 mod winner;
@@ -13,16 +14,15 @@ mod winner;
 pub use action::*;
 use cards::*;
 use evaluation::*;
+pub use glog::*;
 pub use phase::*;
 pub use state::*;
 pub use winner::*;
 
-use crate::PoksError;
 use crate::currency::Currency;
 use crate::players::{Player, PlayerID, PlayerState, Seat};
-use crate::{CU, Result, err_int};
+use crate::{CU, Result};
 
-pub type GlogItem = (Option<PlayerID>, String);
 pub type RNG = rand::rngs::StdRng;
 pub type Seed = <RNG as rand::SeedableRng>::Seed;
 
@@ -41,24 +41,6 @@ pub struct Game {
     game_log: Vec<GlogItem>,
     #[allow(unused)]
     seed: Seed,
-}
-
-macro_rules! glog {
-    ($self:tt, None, $stuff:expr) => {
-        $self.game_log.push((None, $stuff))
-    };
-    ($self:tt, $player:expr, $stuff:expr) => {
-        $self.game_log.push((Some($player), $stuff))
-    };
-}
-
-macro_rules! glogf {
-    ($self:tt, None, $($content:tt)+) => {
-        $self.game_log.push((None, format!($($content)+)))
-    };
-    ($self:tt, $player:expr, $($content:tt)+) => {
-        $self.game_log.push((Some($player), format!($($content)+)))
-    };
 }
 
 impl Game {
@@ -401,16 +383,6 @@ impl Game {
         glogf!(self, bb_pos, "Posts the big blind ({})", self.big_blind);
 
         Ok(())
-    }
-
-    pub fn gamelog(&self) -> &[GlogItem] {
-        &self.game_log
-    }
-
-    pub fn take_gamelog(&mut self) -> Vec<GlogItem> {
-        let a = self.game_log.clone();
-        self.game_log = Vec::with_capacity(32);
-        a
     }
 
     pub fn big_blind(&self) -> Currency {
