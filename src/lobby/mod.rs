@@ -1,6 +1,6 @@
 use circular_queue::CircularQueue;
 use std::fmt::Debug;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::Result;
 use crate::errors::PoksError;
@@ -72,12 +72,17 @@ impl Lobby {
         let game = self.game.clone();
         let player = &mut self.game.current_player_mut();
         let action = player.act(&game)?;
-        let res = match self.game.process_action(action) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        };
-        self.update_action_log();
-        res
+        if let Some(action) = action {
+            let res = match self.game.process_action(action) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
+            };
+            self.update_action_log();
+            res
+        } else {
+            debug!("player.act did not return an action");
+            Ok(())
+        }
     }
 
     fn update_action_log(&mut self) {

@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use tracing::debug;
 
 use crate::{
     CU, Result,
@@ -18,7 +19,7 @@ impl PlayerBehavior for PlayerCPU {
         let mut a = match disc {
             0..10 => Action::Fold,
             10..70 => game.action_call(),
-            70..99 => game.action_raise(CU!(10)),
+            70..99 => Action::Raise(CU!(10)),
             99 => Action::Raise(CU!(100)),
             100 => Action::AllIn(player.currency()),
             _ => unreachable!(),
@@ -30,6 +31,7 @@ impl PlayerBehavior for PlayerCPU {
             }
         }
 
+        debug!("CPU Player acts: {a}");
         Ok(Some(a))
     }
 }

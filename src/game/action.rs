@@ -37,7 +37,11 @@ impl super::Game {
         Action::Raise(call_amount + bet_over_call)
     }
 
-    pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
+    pub fn process_action(&mut self, action: Action) -> Result<()> {
+        debug!("Processing action: {action}");
+        if self.is_finished() {
+            return Err(PoksError::GameFinished);
+        }
         let active_players: Vec<PlayerID> = self
             .players
             .iter()
@@ -65,12 +69,6 @@ impl super::Game {
             return Ok(());
         }
 
-        // Wait for action if none provided
-        let action = match action {
-            Some(a) => a,
-            None => return Ok(()), // Come back when they have an action
-        };
-
         self.apply_action(action)?;
 
         if self.is_betting_complete() {
@@ -86,6 +84,7 @@ impl super::Game {
     // - The transactions here should likely be logged somewhere
     // - It should be checked that the player has enough currency
     fn apply_action(&mut self, action: Action) -> Result<()> {
+        debug!("Applying action: {action}");
         let highest_bet = self.highest_bet_of_round();
         let state = self.state;
         let min_raise = self.min_raise_amount();
@@ -111,19 +110,21 @@ impl super::Game {
             }
             Action::Raise(amount) => {
                 let call_amount = highest_bet - player.round_bet;
-                let plus_call: Currency = amount - call_amount;
 
                 if state == GameState::RaiseDisallowed {
                     return Err(PoksError::RaiseNotAllowed);
                 } else if amount > player.currency() {
                     return Err(PoksError::insufficient_funds(amount, player.currency()));
-                } else if plus_call < min_raise {
+                } else if amount < min_raise {
                     error!(
                         "Player tried to raise by an amount less than the call + min raise: amount: {amount}, call_amount: {call_amount}"
                     );
-                    return Err(crate::PoksError::RaiseTooSmall(amount, min_raise));
+                    return Err(crate::PoksError::raise_too_small(
+                        amount,
+                        min_raise + call_amount,
+                    ));
                 } else {
-                    let delta = player.withdraw_currency(amount)?;
+                    let delta = player.withdraw_currency(amount + call_amount)?;
                     *player.round_bet_mut() += delta;
                 }
             }
