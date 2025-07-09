@@ -103,12 +103,16 @@ pub enum PoksError {
     ConfigError { field: String, reason: String },
 }
 
-#[macro_export]
-macro_rules! err_int {
+mod macros {
+    macro_rules! err_int {
     ($($toks:tt)+) => {
         $crate::errors::PoksError::internal(format!($($toks)+))
     };
 }
+
+    pub(crate) use err_int;
+}
+pub(crate) use macros::*;
 
 impl PoksError {
     // Convenience constructors for common error patterns
