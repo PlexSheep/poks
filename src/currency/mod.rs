@@ -8,7 +8,8 @@ use std::{
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct Currency(u64);
+#[must_use]
+pub struct Currency(i64);
 
 #[macro_export]
 macro_rules! CU {
@@ -28,26 +29,37 @@ impl Currency {
     pub const ONE: Currency = Currency(100);
     pub const ZERO: Currency = Currency(0);
 
-    pub const fn new(credits: u64, cents: u64) -> Self {
+    #[inline]
+    pub const fn new(credits: i64, cents: i64) -> Self {
         Self(credits * 100 + cents)
     }
 
-    pub const fn inner(&self) -> &u64 {
+    #[inline]
+    pub const fn inner(&self) -> &i64 {
         &self.0
     }
 
-    pub const fn inner_mut(&mut self) -> &mut u64 {
+    #[inline]
+    pub const fn inner_mut(&mut self) -> &mut i64 {
         &mut self.0
     }
 
     /// Get ONLY the cents part
-    pub const fn cents(&self) -> u64 {
+    #[inline]
+    pub const fn cents(&self) -> i64 {
         self.0 % 100
     }
 
     /// Get ONLY the major part, without cents
-    pub const fn credits(&self) -> u64 {
+    #[inline]
+    pub const fn credits(&self) -> i64 {
         self.0 / 100
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_negative(&self) -> bool {
+        self.0.is_negative()
     }
 
     pub const fn round_cents(&self) -> Self {
@@ -59,13 +71,14 @@ impl Currency {
         }
     }
 
+    #[inline]
     pub const fn as_float(&self) -> f64 {
         self.0 as f64 / 100.0
     }
 }
 
 impl Deref for Currency {
-    type Target = u64;
+    type Target = i64;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -78,16 +91,16 @@ impl DerefMut for Currency {
     }
 }
 
-impl From<u64> for Currency {
-    fn from(value: u64) -> Self {
+impl From<i64> for Currency {
+    fn from(value: i64) -> Self {
         Currency(value)
     }
 }
 
 impl Display for Currency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let creds = self.credits();
-        let cents = self.cents();
+        let creds = self.credits().abs();
+        let cents = self.cents().abs();
 
         // Format main units with thousands separators
         let main_str = if creds == 0 {
@@ -109,7 +122,8 @@ impl Display for Currency {
         // Combine everything
         write!(
             f,
-            "{}{}{:02}{}",
+            "{}{}{}{:02}{}",
+            if self.is_negative() { "-" } else { "" },
             main_str,
             Self::DECIMAL_SEPARATOR,
             cents,
@@ -142,10 +156,10 @@ impl Mul for Currency {
     }
 }
 
-impl Mul<u64> for Currency {
+impl Mul<i64> for Currency {
     type Output = Self;
 
-    fn mul(self, rhs: u64) -> Self::Output {
+    fn mul(self, rhs: i64) -> Self::Output {
         Self(self.0 * rhs)
     }
 }
@@ -184,8 +198,8 @@ impl MulAssign for Currency {
     }
 }
 
-impl MulAssign<u64> for Currency {
-    fn mul_assign(&mut self, rhs: u64) {
+impl MulAssign<i64> for Currency {
+    fn mul_assign(&mut self, rhs: i64) {
         self.0 *= rhs
     }
 }
@@ -240,6 +254,18 @@ mod test {
         assert_eq!(Currency(10).to_string(), "0,10ŧ");
         assert_eq!(Currency(1).to_string(), "0,01ŧ");
         assert_eq!(Currency(0).to_string(), "0,00ŧ");
+        assert_eq!(Currency(-0).to_string(), "0,00ŧ");
+        assert_eq!(Currency(-1).to_string(), "-0,01ŧ");
+        assert_eq!(Currency(-10).to_string(), "-0,10ŧ");
+        assert_eq!(Currency(-100).to_string(), "-1,00ŧ");
+        assert_eq!(Currency(-10000).to_string(), "-100,00ŧ");
+        assert_eq!(Currency(-100000).to_string(), "-1.000,00ŧ");
+        assert_eq!(Currency(-1000000).to_string(), "-10.000,00ŧ");
+        assert_eq!(Currency(-10000000).to_string(), "-100.000,00ŧ");
+        assert_eq!(Currency(-100000000).to_string(), "-1.000.000,00ŧ");
+        assert_eq!(Currency(-1000000000).to_string(), "-10.000.000,00ŧ");
+        assert_eq!(Currency(-10000000000).to_string(), "-100.000.000,00ŧ");
+        assert_eq!(Currency(-100000000000).to_string(), "-1.000.000.000,00ŧ");
 
         assert_eq!(crate::currency::Currency::new(1, 50).to_string(), "1,50ŧ");
         assert_eq!(CU!(1, 50).to_string(), "1,50ŧ");
