@@ -56,6 +56,7 @@ impl super::Game {
 
     pub(super) fn advance_turn(&mut self) -> Result<()> {
         if let Some(next_player) = self.next_active_player(self.turn) {
+            debug!("Next active player: {next_player}");
             self.turn = next_player;
             Ok(())
         } else {
