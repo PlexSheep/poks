@@ -30,7 +30,7 @@ pub(crate) struct PoksTUI {
 }
 
 impl PoksTUI {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(players: u8) -> Self {
         let mut lobby_builder = Lobby::builder();
 
         let startc = CU!(5000);
@@ -44,7 +44,7 @@ impl PoksTUI {
         }
 
         trace!("Adding CPU Players");
-        for _ in 1..8 {
+        for _ in 1..players {
             let seat = Seat::new(startc, PlayerCPU::default());
             lobby_builder
                 .add_seat(seat)
