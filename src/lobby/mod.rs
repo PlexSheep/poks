@@ -72,17 +72,12 @@ impl Lobby {
         let game = self.game.clone();
         let player = &mut self.game.current_player_mut();
         let action = player.act(&game)?;
-        if let Some(action) = action {
-            let res = match self.game.process_action(action) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(e),
-            };
-            self.update_action_log();
-            res
-        } else {
-            trace!("player.act did not return an action");
-            Ok(())
-        }
+        let res = match self.game.process_action(action) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        };
+        self.update_action_log();
+        res
     }
 
     fn update_action_log(&mut self) {
