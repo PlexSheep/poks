@@ -80,7 +80,7 @@ impl Lobby {
             self.update_action_log();
             res
         } else {
-            debug!("player.act did not return an action");
+            trace!("player.act did not return an action");
             Ok(())
         }
     }

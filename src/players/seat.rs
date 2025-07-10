@@ -44,7 +44,6 @@ impl Seat {
 
     #[inline]
     pub fn behavior<'a>(&'a self) -> RwLockReadGuard<'a, BehaveBox> {
-        trace!("get seat behavior");
         self.behavior
             .read()
             .expect("could not access player behavior of lobby seat")
@@ -52,7 +51,6 @@ impl Seat {
 
     #[inline]
     pub fn behavior_mut<'a>(&'a self) -> RwLockWriteGuard<'a, BehaveBox> {
-        trace!("get seat behavior_mut");
         self.behavior
             .write()
             .expect("could not access player behavior of lobby seat")

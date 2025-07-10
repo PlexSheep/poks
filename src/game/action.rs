@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use tracing::error;
+use tracing::{error, info};
 
 use super::*;
 use crate::{CU, PoksError, currency::Currency};
@@ -33,7 +33,6 @@ impl super::Game {
         let highest_bet = self.highest_bet_of_round();
         let player = self.current_player();
         let call_amount = highest_bet - player.round_bet;
-        let diff = self.highest_bet_of_round() - self.players[self.turn].round_bet;
         Action::Raise(call_amount + bet_over_call)
     }
 
@@ -50,6 +49,7 @@ impl super::Game {
             .map(|(id, _)| id)
             .collect();
 
+        trace!("Active players: {}", active_players.len());
         if active_players.len() <= 1 {
             if let Some(winner_id) = active_players.first() {
                 debug!("Player action was dropped because they are the only player left");
@@ -65,6 +65,8 @@ impl super::Game {
         // skip players who are not actually playing
         // NOTE: might need extra logic for all in players here?
         if !current_player.state().is_playing() {
+            info!("current player is not playing, skipping them");
+            debug!("current_player.state={}", current_player.state());
             self.advance_turn()?;
             return Ok(());
         }
@@ -72,9 +74,11 @@ impl super::Game {
         self.apply_action(action)?;
 
         if self.is_betting_complete() {
+            info!("betting complete");
             // Move to next phase
             self.advance_phase()
         } else {
+            info!("next turn");
             // Continue betting round
             self.advance_turn()
         }
