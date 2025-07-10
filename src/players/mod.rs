@@ -27,6 +27,7 @@ pub type PlayerID = usize;
 pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct Player {
     pub state: PlayerState,
     pub total_bet: Currency,

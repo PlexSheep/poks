@@ -39,7 +39,7 @@ impl PoksTUI {
         let player = PlayerLocal::new();
         let player_action_field = player.action_field_reference();
         {
-            let seat = Seat::new(startc, PlayerCPU::default());
+            let seat = Seat::new(startc, player);
             lobby_builder.add_seat(seat).unwrap();
         }
 
