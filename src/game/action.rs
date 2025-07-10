@@ -36,8 +36,7 @@ impl super::Game {
         Action::Raise(call_amount + bet_over_call)
     }
 
-    pub fn process_action(&mut self, action: Action) -> Result<()> {
-        debug!("Processing action: {action}");
+    pub fn process_action(&mut self, action: Option<Action>) -> Result<()> {
         if self.is_finished() {
             return Err(PoksError::GameFinished);
         }
@@ -67,9 +66,25 @@ impl super::Game {
         if !current_player.state().is_playing() {
             info!("current player is not playing, skipping them");
             debug!("current_player.state={}", current_player.state());
+
+            // since this player is not playing, self.active_players should not contain them
+            debug_assert_eq!(
+                self.active_players().position(|p| p == current_player),
+                None
+            );
+
             self.advance_turn()?;
             return Ok(());
         }
+
+        let action = match action {
+            Some(a) => a,
+            None => {
+                trace!("Player made no action, waiting for them");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                return Ok(());
+            }
+        };
 
         self.apply_action(action)?;
 

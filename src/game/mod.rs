@@ -239,12 +239,25 @@ impl Game {
         self.players.iter().filter(|p| p.is_active())
     }
 
-    pub fn next_active_player(&self, turn: PlayerID) -> Option<PlayerID> {
-        let active: usize = self.active_players().count();
-        if active < 2 {
-            None
-        } else {
-            Some((turn + 1) % active)
+    #[inline]
+    fn active_players_ids(&self) -> impl Iterator<Item = (PlayerID, &Player)> {
+        self.players
+            .iter()
+            .enumerate()
+            .filter(|(pi, p)| p.is_active())
+    }
+
+    pub fn next_active_player(&self, mut turn: PlayerID) -> Option<PlayerID> {
+        let aps: Vec<_> = self.active_players().collect();
+        if aps.len() < 2 {
+            return None;
+        }
+        // TODO: add guard to make sure this cant loop forever
+        loop {
+            turn = (turn + 1) % self.players.len();
+            if aps.contains(&&self.players()[turn]) {
+                return Some(turn);
+            }
         }
     }
 }
