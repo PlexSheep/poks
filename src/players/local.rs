@@ -13,10 +13,12 @@ pub struct PlayerLocal {
 }
 
 impl PlayerLocal {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn action_field_reference(&self) -> Arc<RwLock<Option<Action>>> {
         self.next_action.clone()
     }

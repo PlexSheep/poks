@@ -15,6 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+#[must_use]
 pub struct Seat {
     currency: Currency,
     behavior: Arc<RwLock<BehaveBox>>,
