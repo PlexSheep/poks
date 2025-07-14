@@ -6,7 +6,7 @@ license = "GPL-3.0+"
 
 [dependencies]
 # NOTE: rand needs to be the same version that the poker crate uses
-rand = { version = "0.8.5", features = ["std_rng", "std"] }
+rand = { version = "0.9.1", features = ["std_rng", "std"] }
 crossterm = "0.29.0"
 poker = "0.7.0"
 color-eyre = "0.6.3"
