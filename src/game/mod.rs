@@ -260,4 +260,16 @@ impl Game {
             }
         }
     }
+
+    pub(crate) fn check_for_enough_active_players(&mut self) -> Result<()> {
+        let active_players: Vec<(PlayerID, &Player)> = self.active_players_ids().collect();
+        if active_players.len() < 2 {
+            if active_players.is_empty() {
+                return Err(crate::PoksError::NoActivePlayers);
+            }
+            debug_assert_eq!(active_players.len(), 1);
+            self.set_winner(Winner::UnknownCards(self.pot(), active_players[0].0));
+        }
+        Ok(())
+    }
 }
