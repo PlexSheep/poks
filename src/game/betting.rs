@@ -101,6 +101,10 @@ impl super::Game {
         let mut np_pos = (self.dealer_position() + 1) % self.players.len();
         let active_players: Vec<&Player> = self.active_players().collect();
 
+        if active_players.len() == 1 {
+            todo!("No idea what to do when we start betting with only one active player?")
+        }
+
         let mut guard = 0;
         let mut next_player;
         loop {
@@ -112,6 +116,7 @@ impl super::Game {
                 }
             }
             if guard > active_players.len() {
+                debug!("Active players: {active_players:#?}");
                 panic!("Could not determine next player for betting round")
             }
             guard += 1;
