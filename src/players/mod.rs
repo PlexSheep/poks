@@ -29,11 +29,11 @@ pub type BehaveBox = Box<dyn PlayerBehavior + Send + Sync>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
 pub struct Player {
-    pub state: PlayerState,
+    state: PlayerState,
     pub total_bet: Currency,
     pub round_bet: Currency,
-    pub hand: Cards<2>,
-    pub seat: Seat,
+    hand: Cards<2>,
+    seat: Seat,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]

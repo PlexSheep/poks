@@ -43,7 +43,14 @@ impl super::Game {
 
         self.check_for_enough_active_players()?;
 
-        let current_player = self.current_player();
+        let current_player = self.current_player_mut();
+
+        if current_player.currency() == CU!(0) {
+            current_player.set_state(PlayerState::Lost);
+            // FIXME: somehow glogf! does not work here
+
+            // glogf(self, self.current_player_id(), "is bankrupt.");
+        }
 
         // skip players who are not actually playing
         // NOTE: might need extra logic for all in players here?
@@ -51,9 +58,12 @@ impl super::Game {
             info!("current player is not playing, skipping them");
             debug!("current_player.state={}", current_player.state());
 
+            let _ = current_player;
+
             // since this player is not playing, self.active_players should not contain them
             debug_assert_eq!(
-                self.active_players().position(|p| p == current_player),
+                self.active_players()
+                    .position(|p| p == self.current_player()),
                 None
             );
 
@@ -137,7 +147,7 @@ impl super::Game {
                         actual: amount,
                     });
                 } else {
-                    player.state = PlayerState::AllIn;
+                    player.set_state(PlayerState::AllIn);
                     let delta = player.withdraw_currency(amount)?;
                     *player.round_bet_mut() += delta;
                 }
