@@ -48,7 +48,6 @@ impl super::Game {
             .map(|(id, _)| id)
             .collect();
 
-        trace!("Active players: {}", active_players.len());
         if active_players.len() <= 1 {
             if let Some(winner_id) = active_players.first() {
                 debug!("Player action was dropped because they are the only player left");
@@ -80,7 +79,6 @@ impl super::Game {
         let action = match action {
             Some(a) => a,
             None => {
-                trace!("Player made no action, waiting for them");
                 std::thread::sleep(std::time::Duration::from_millis(10));
                 return Ok(());
             }
