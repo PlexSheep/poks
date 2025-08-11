@@ -102,7 +102,7 @@ impl super::Game {
         let active_players: Vec<&Player> = self.active_players().collect();
 
         if active_players.len() == 1 {
-            todo!("No idea what to do when we start betting with only one active player?")
+            return Err(crate::PoksError::OnlyOnePlayerActive);
         }
 
         let mut guard = 0;

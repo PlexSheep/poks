@@ -103,6 +103,9 @@ pub enum PoksError {
 
     #[error("Player tried to raise by too small an amount: {0} < {1}")]
     RaiseTooSmall(Currency, Currency),
+
+    #[error("Tried to start betting but only one active player remains")]
+    OnlyOnePlayerActive,
 }
 
 mod macros {
