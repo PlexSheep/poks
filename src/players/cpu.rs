@@ -1,5 +1,5 @@
 use rand::prelude::*;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{
     CU, Result,
@@ -22,7 +22,10 @@ impl PlayerBehavior for PlayerCPU {
             70..99 => Action::Raise(CU!(10)),
             99 => Action::Raise(CU!(100)),
             100 => Action::AllIn(player.currency()),
-            _ => unreachable!(),
+            _ => {
+                warn!("CPU Player random action generator is out of range, defaulting to call");
+                game.action_call()
+            }
         };
 
         if let Action::Raise(bet) = a {
