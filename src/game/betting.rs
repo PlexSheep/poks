@@ -110,6 +110,7 @@ impl super::Game {
 
         let mut guard = 0;
         let mut next_player;
+        // BUG: this loop sometimes fails even with more than 1 active player
         loop {
             next_player = &self.players()[np_pos];
             match active_players.iter().position(|p| **p == *next_player) {
@@ -138,7 +139,7 @@ impl super::Game {
     fn showdown(&mut self) -> Result<()> {
         let mut evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = Vec::new();
         for (pid, player) in self.players.iter().enumerate() {
-            if player.state != PlayerState::Playing {
+            if player.state() != PlayerState::Playing {
                 continue;
             }
             let mut hand_plus_table: CardsDynamic = player.hand().into();
@@ -192,7 +193,7 @@ impl super::Game {
         // - Gone all-in (and contributed what they could)
         active_players
             .iter()
-            .all(|&player| player.round_bet == highest_bet || player.state == PlayerState::AllIn)
+            .all(|&player| player.round_bet == highest_bet || player.state() == PlayerState::AllIn)
     }
 }
 

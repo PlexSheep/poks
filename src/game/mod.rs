@@ -212,6 +212,11 @@ impl Game {
         &self.players[self.turn]
     }
 
+    #[inline(always)]
+    pub fn current_player_id(&self) -> PlayerID {
+        self.turn
+    }
+
     #[inline]
     pub fn current_player_mut(&mut self) -> &mut Player {
         &mut self.players[self.turn]
@@ -271,5 +276,14 @@ impl Game {
             self.set_winner(Winner::UnknownCards(self.pot(), active_players[0].0));
         }
         Ok(())
+    }
+
+    pub fn pid_of_player(&self, player: &Player) -> Option<PlayerID> {
+        for (pid, p) in self.players().iter().enumerate() {
+            if p == player {
+                return Some(pid);
+            }
+        }
+        None
     }
 }
