@@ -68,6 +68,8 @@ impl super::Game {
     }
 
     pub(super) fn advance_phase(&mut self) -> Result<()> {
+        self.check_for_enough_active_players()?;
+
         match self.phase() {
             Phase::Preflop => {
                 let _ = self.draw_card(); // burn card
@@ -99,6 +101,7 @@ impl super::Game {
     fn start_betting(&mut self) -> Result<()> {
         // PERF: this might return a paused player, but should cost just another processing round
         let mut np_pos = (self.dealer_position() + 1) % self.players.len();
+
         let active_players: Vec<&Player> = self.active_players().collect();
 
         if active_players.len() == 1 {

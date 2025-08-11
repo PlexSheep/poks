@@ -40,23 +40,8 @@ impl super::Game {
         if self.is_finished() {
             return Err(PoksError::GameFinished);
         }
-        let active_players: Vec<PlayerID> = self
-            .players
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| p.state.is_playing())
-            .map(|(id, _)| id)
-            .collect();
 
-        if active_players.len() <= 1 {
-            if let Some(winner_id) = active_players.first() {
-                debug!("Player action was dropped because they are the only player left");
-                self.set_winner(Winner::UnknownCards(self.pot(), *winner_id));
-                return Ok(());
-            } else {
-                return Err(crate::PoksError::NoActivePlayers);
-            }
-        }
+        self.check_for_enough_active_players()?;
 
         let current_player = self.current_player();
 
