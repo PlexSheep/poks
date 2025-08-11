@@ -153,8 +153,22 @@ impl super::Game {
         }
 
         evals.sort_by(|a, b| b.1.cmp(&a.1));
-        if evals.iter().any(|e| e.1 == evals[0].1) {
-            todo!("We have a draw!")
+        debug_assert_ne!(Eval::<FiveCard>::BEST, Eval::<FiveCard>::WORST);
+        debug_assert!(Eval::<FiveCard>::BEST > Eval::<FiveCard>::WORST);
+        if evals
+            .iter()
+            .skip(1) // skip the first because it's the best evaluation and we check against it
+            .any(|e| e.1 == evals[0].1)
+        {
+            debug!("We have a draw!");
+            for (pid, eval, cards) in evals {
+                debug!(
+                    "Player {pid} has: {} ({})",
+                    eval.to_string(),
+                    show_cards(&cards)
+                );
+            }
+            panic!("Draw resolution is not yet implemented.")
         }
         let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
         self.set_winner(winner);
