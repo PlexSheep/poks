@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs::OpenOptions, time::Duration};
+use std::{fs::OpenOptions, time::Duration};
 
 use clap::Parser;
 use color_eyre::Result;
