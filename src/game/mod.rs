@@ -266,16 +266,21 @@ impl Game {
         }
     }
 
-    pub(crate) fn check_for_enough_active_players(&mut self) -> Result<()> {
+    #[must_use]
+    pub(crate) fn has_enough_active_players(&mut self) -> bool {
         let active_players: Vec<(PlayerID, &Player)> = self.active_players_ids().collect();
         if active_players.len() < 2 {
             if active_players.is_empty() {
-                return Err(crate::PoksError::NoActivePlayers);
+                return false;
             }
             debug_assert_eq!(active_players.len(), 1);
             self.set_winner(Winner::UnknownCards(self.pot(), active_players[0].0));
+            return false;
         }
-        Ok(())
+
+        debug_assert!(self.active_players().count() > 1);
+
+        true
     }
 
     pub fn pid_of_player(&self, player: &Player) -> Option<PlayerID> {
