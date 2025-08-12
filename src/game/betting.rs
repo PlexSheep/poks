@@ -1,5 +1,5 @@
 use super::*;
-use crate::Result;
+use crate::{Result, players};
 
 /// Implement the blinds
 impl super::Game {
@@ -102,17 +102,17 @@ impl super::Game {
 
     fn start_betting(&mut self) -> Result<()> {
         // PERF: this might return a paused player, but should cost just another processing round
-        let mut np_pos = (self.dealer_position() + 1) % self.players.len();
 
         let active_players: Vec<&Player> = self.active_players().collect();
 
-        if active_players.len() == 1 {
+        if active_players.len() <= 1 {
             return Err(crate::PoksError::OnlyOnePlayerActive);
         }
+        assert!(!active_players.is_empty());
 
         let mut guard = 0;
         let mut next_player;
-        // BUG: this loop sometimes fails even with more than 1 active player
+        let mut np_pos = (self.dealer_position() + 1) % self.players.len();
         loop {
             next_player = &self.players()[np_pos];
             match active_players.iter().position(|p| **p == *next_player) {
@@ -121,7 +121,7 @@ impl super::Game {
                     np_pos = (np_pos + 1) % active_players.len();
                 }
             }
-            if guard > active_players.len() {
+            if guard > self.players().len() {
                 debug!("Active players: {active_players:#?}");
                 panic!("Could not determine next player for betting round")
             }
