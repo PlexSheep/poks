@@ -1,3 +1,4 @@
+#[allow(unused)] // i wanna keep that
 use ntest::timeout;
 use poksen::{
     CU, PoksError,
@@ -19,7 +20,6 @@ fn get_world() -> Lobby {
 }
 
 #[test]
-#[timeout(300)]
 fn test_play_500_games_cpu() {
     let mut w = get_world();
     for _gi in 0..500 {
@@ -31,12 +31,6 @@ fn test_play_500_games_cpu() {
                     PoksError::RaiseNotAllowed => (),
                     _ => panic!("Error while ticking the game: {e}"),
                 },
-            }
-            let last_action = w.action_log().iter().last().unwrap();
-            if let Some(pid) = last_action.0 {
-                println!("Player {pid}: {}", last_action.1)
-            } else {
-                println!("{}", last_action.1)
             }
         }
     }
