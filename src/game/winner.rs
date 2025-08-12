@@ -18,17 +18,28 @@ pub enum Winner {
 impl Winner {
     pub fn payout(&self, game: &mut Game) -> Result<()> {
         info!("Payout!");
-        let winnings = game.pot();
+        let winnings = self.winnings();
         let player = &mut game.players[self.pid()];
         assert_ne!(winnings, CU!(0));
         player.add_currency(winnings)?;
         Ok(())
     }
 
+    pub fn payout_split(&self, game: &mut Game) -> Result<()> {
+        todo!()
+    }
+
     pub fn pid(&self) -> PlayerID {
         match self {
             Winner::UnknownCards(_, pid) => *pid,
             Winner::KnownCards(_, pid, ..) => *pid,
+        }
+    }
+
+    pub fn winnings(&self) -> Currency {
+        match self {
+            Winner::UnknownCards(winnings, _) => *winnings,
+            Winner::KnownCards(winnings, ..) => *winnings,
         }
     }
 }

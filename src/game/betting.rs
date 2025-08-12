@@ -167,17 +167,28 @@ impl super::Game {
             .any(|e| e.1 == evals[0].1)
         {
             debug!("We have a draw!");
-            for (pid, eval, cards) in evals {
+            for (pid, eval, cards) in evals.iter() {
                 debug!(
                     "Player {pid} has: {} ({})",
                     eval.to_string(),
-                    show_cards(&cards)
+                    show_cards(cards)
                 );
             }
-            panic!("Draw resolution is not yet implemented.")
+            // FIXME: this is probably a simplified draw resolution not consistent with holdem rules
+            let winning_evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = evals
+                .iter()
+                .filter(|e| e.1 == evals[0].1)
+                .cloned()
+                .collect();
+            let winnings_per_winner = self.pot() / winning_evals.len() as i64;
+            for winval in winning_evals {
+                let winner = Winner::KnownCards(winnings_per_winner, winval.0, winval.1, winval.2);
+                self.set_winner(winner);
+            }
+        } else {
+            let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
+            self.set_winner(winner);
         }
-        let winner = Winner::KnownCards(self.pot(), evals[0].0, evals[0].1, evals[0].2);
-        self.set_winner(winner);
         Ok(())
     }
 
