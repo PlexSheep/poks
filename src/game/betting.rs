@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Result, players};
+use crate::Result;
 
 /// Implement the blinds
 impl super::Game {
@@ -115,10 +115,10 @@ impl super::Game {
         let mut np_pos = (self.dealer_position() + 1) % self.players.len();
         loop {
             next_player = &self.players()[np_pos];
-            match active_players.iter().position(|p| **p == *next_player) {
-                Some(_) => break,
-                None => {
-                    np_pos = (np_pos + 1) % active_players.len();
+            match active_players.contains(&next_player) {
+                true => break,
+                false => {
+                    np_pos = (np_pos + 1) % self.players().len();
                 }
             }
             if guard > self.players().len() {
