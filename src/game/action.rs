@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use super::*;
 use crate::{CU, PoksError, currency::Currency};
@@ -41,7 +41,10 @@ impl super::Game {
             return Err(PoksError::GameFinished);
         }
 
-        self.check_for_enough_active_players()?;
+        if !self.has_enough_active_players() {
+            warn!("Processing action but not enough players active");
+            return Ok(());
+        };
 
         let current_player = self.current_player_mut();
 

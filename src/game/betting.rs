@@ -68,7 +68,9 @@ impl super::Game {
     }
 
     pub(super) fn advance_phase(&mut self) -> Result<()> {
-        self.check_for_enough_active_players()?;
+        if !self.has_enough_active_players() {
+            return Ok(());
+        };
 
         match self.phase() {
             Phase::Preflop => {
