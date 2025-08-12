@@ -166,7 +166,7 @@ impl super::Game {
             .skip(1) // skip the first because it's the best evaluation and we check against it
             .any(|e| e.1 == evals[0].1)
         {
-            debug!("We have a draw!");
+            glogf!(self, None, "Equal hands, pot will be splitted!");
             for (pid, eval, cards) in evals.iter() {
                 debug!(
                     "Player {pid} has: {} ({})",
@@ -174,7 +174,9 @@ impl super::Game {
                     show_cards(cards)
                 );
             }
-            // FIXME: this is probably a simplified draw resolution not consistent with holdem rules
+            // FIXME: this is a simplified draw resolution not consistent with holdem rules.
+            // Players who were all in can win beyond their "investments", which i think isn't
+            // official
             let winning_evals: Vec<(PlayerID, Eval<FiveCard>, Cards<7>)> = evals
                 .iter()
                 .filter(|e| e.1 == evals[0].1)

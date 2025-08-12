@@ -3,7 +3,7 @@ use std::fmt::Display;
 use tracing::{error, info, warn};
 
 use super::*;
-use crate::{CU, PoksError, currency::Currency};
+use crate::{CU, PoksError, currency::Currency, game::glogf};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
@@ -46,22 +46,22 @@ impl super::Game {
             return Ok(());
         };
 
-        let current_player = self.current_player_mut();
+        let pid = self.current_player_id();
 
-        if current_player.currency() == CU!(0) {
-            current_player.set_state(PlayerState::Lost);
+        if self.current_player().currency() == CU!(0) {
+            self.current_player_mut().set_state(PlayerState::Lost);
             // FIXME: somehow glogf! does not work here
 
-            // glogf(self, self.current_player_id(), "is bankrupt.");
+            glogf!(self, pid, "is bankrupt.");
         }
+
+        let current_player = self.current_player();
 
         // skip players who are not actually playing
         // NOTE: might need extra logic for all in players here?
         if !current_player.state().is_playing() {
             info!("current player is not playing, skipping them");
             debug!("current_player.state={}", current_player.state());
-
-            let _ = current_player;
 
             // since this player is not playing, self.active_players should not contain them
             debug_assert_eq!(
@@ -103,6 +103,7 @@ impl super::Game {
         let highest_bet = self.highest_bet_of_round();
         let state = self.state;
         let min_raise = self.min_raise_amount();
+        let pid = self.current_player_id();
         let player = self.current_player_mut();
 
         match action {
@@ -121,6 +122,7 @@ impl super::Game {
                 } else {
                     let delta = player.withdraw_currency(amount)?;
                     *player.round_bet_mut() += delta;
+                    glogf!(self, pid, "calls for {delta}");
                 }
             }
             Action::Raise(amount) => {
@@ -141,6 +143,7 @@ impl super::Game {
                 } else {
                     let delta = player.withdraw_currency(amount + call_amount)?;
                     *player.round_bet_mut() += delta;
+                    glogf!(self, pid, "raises by {delta}");
                 }
             }
             Action::AllIn(amount) => {
@@ -153,6 +156,7 @@ impl super::Game {
                     player.set_state(PlayerState::AllIn);
                     let delta = player.withdraw_currency(amount)?;
                     *player.round_bet_mut() += delta;
+                    glogf!(self, pid, "goes all in with {delta}!");
                 }
             }
         }
