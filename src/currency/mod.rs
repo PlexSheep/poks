@@ -176,6 +176,14 @@ impl Div for Currency {
     }
 }
 
+impl Div<i64> for Currency {
+    type Output = Self;
+
+    fn div(self, rhs: i64) -> Self::Output {
+        Self(self.0 / rhs)
+    }
+}
+
 impl Rem for Currency {
     type Output = Self;
 
