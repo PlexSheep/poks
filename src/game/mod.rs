@@ -117,7 +117,6 @@ impl Game {
         &mut self.phase
     }
 
-    #[inline]
     pub fn set_phase(&mut self, phase: Phase) {
         for player in self.players.iter_mut() {
             player.total_bet += player.round_bet;
