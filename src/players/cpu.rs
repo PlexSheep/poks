@@ -19,9 +19,9 @@ impl PlayerBehavior for PlayerCPU {
         let mut a = match disc {
             0..10 => Action::Fold,
             10..70 => game.action_call(),
-            70..99 => Action::Raise(CU!(10)),
-            99 => Action::Raise(CU!(100)),
-            100 => Action::AllIn(player.currency()),
+            70..99 if player.currency() > CU!(50) => Action::Raise(CU!(10)),
+            99 if player.currency() > CU!(500) => Action::Raise(CU!(100)),
+            // 100 => Action::AllIn(player.currency()),
             _ => {
                 warn!("CPU Player random action generator is out of range, defaulting to call");
                 game.action_call()
