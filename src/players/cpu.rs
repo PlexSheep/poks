@@ -28,10 +28,10 @@ impl PlayerBehavior for PlayerCPU {
             }
         };
 
-        if let Action::Raise(bet) = a {
-            if bet >= player.currency() {
-                a = Action::Fold;
-            }
+        if let Action::Raise(bet) = a
+            && bet >= player.currency()
+        {
+            a = Action::Fold;
         }
 
         debug!("CPU Player acts: {a}");
