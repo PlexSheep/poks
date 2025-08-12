@@ -5,8 +5,6 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use tracing::trace;
-
 use crate::{
     Result,
     currency::Currency,
