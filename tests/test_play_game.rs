@@ -20,9 +20,9 @@ fn get_world() -> Lobby {
 
 #[test]
 #[timeout(300)]
-fn test_play_50_games_cpu() {
+fn test_play_500_games_cpu() {
     let mut w = get_world();
-    for _gi in 0..50 {
+    for _gi in 0..500 {
         w.start_new_game().unwrap();
         while !w.game.is_finished() {
             match w.tick_game() {
