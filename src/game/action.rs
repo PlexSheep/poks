@@ -143,7 +143,7 @@ impl super::Game {
                 } else {
                     let delta = player.withdraw_currency(amount + call_amount)?;
                     *player.round_bet_mut() += delta;
-                    glogf!(self, pid, "raises by {delta}");
+                    glogf!(self, pid, "raises by {amount}");
                 }
             }
             Action::AllIn(amount) => {
