@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Seat {
-    currency: Currency,
+    currency: Arc<RwLock<Currency>>,
     behavior: Arc<RwLock<BehaveBox>>,
 }
 
@@ -25,18 +25,8 @@ impl Seat {
         B: PlayerBehavior + Send + Sync + 'static,
     {
         Self {
-            currency: starting_cash,
+            currency: Arc::new(RwLock::new(starting_cash)),
             behavior: Arc::new(RwLock::new(Box::new(behavior))),
-        }
-    }
-
-    pub fn new_box(
-        starting_cash: Currency,
-        behavior: Box<dyn PlayerBehavior + Send + Sync>,
-    ) -> Self {
-        Self {
-            currency: starting_cash,
-            behavior: Arc::new(RwLock::new(behavior)),
         }
     }
 
@@ -55,11 +45,13 @@ impl Seat {
     }
 
     pub fn set_currency(&mut self, cu: Currency) {
-        self.currency = cu;
+        *self.currency_mut() = cu;
     }
 
-    fn currency_mut(&mut self) -> &mut Currency {
-        &mut self.currency
+    fn currency_mut(&mut self) -> std::sync::RwLockWriteGuard<'_, Currency> {
+        self.currency
+            .write()
+            .expect("could not get seat's currency for writing")
     }
 
     #[inline]
@@ -79,7 +71,10 @@ impl Seat {
     }
 
     pub fn currency(&self) -> Currency {
-        self.currency
+        *self
+            .currency
+            .read()
+            .expect("could not get seat's currency for reading")
     }
 
     pub fn act(&self, game: &crate::game::Game, player: &Player) -> Result<Option<Action>> {
