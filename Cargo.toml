@@ -33,7 +33,7 @@ path = "src/bins/tui/main.rs"
 required-features = ["cli", "tui"]
 
 [dev-dependencies]
-ntest = "0.9.3"
+ntest = "0.9.5"
 
 [features]
 default = ["cli", "tui"]
